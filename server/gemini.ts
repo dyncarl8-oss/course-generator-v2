@@ -808,7 +808,7 @@ PLACEMENT RULES:
 VIDEO SELECTION RULES:
 1. Select EXACTLY ONE lesson across the entire course to have a video.
 2. Choose a lesson that is educational and would benefit from a visual teacher/whiteboard explanation (e.g., explaining a core concept).
-3. Set `shouldGenerateVideo: true` for that specific lesson.
+3. Set \`shouldGenerateVideo: true\` for that specific lesson.
 
 Respond ONLY with valid JSON:
 {
