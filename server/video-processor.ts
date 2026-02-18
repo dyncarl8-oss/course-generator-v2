@@ -42,6 +42,7 @@ export async function stitchVideos(videoUrls: string[], outputPath: string): Pro
     }
 
     const tempFiles: string[] = [];
+    const listFilePath = path.join(tempDir, 'list.txt');
 
     try {
         console.log(`Downloading ${videoUrls.length} video segments for stitching...`);
@@ -51,33 +52,43 @@ export async function stitchVideos(videoUrls: string[], outputPath: string): Pro
             tempFiles.push(tempFile);
         }
 
-        console.log(`Stitching segments using FFmpeg...`);
+        // Create list.txt for FFmpeg concat demuxer
+        // We use absolute paths to be safe, escaping single quotes if any
+        const listContent = tempFiles.map(file => `file '${file.replace(/'/g, "'\\''")}'`).join('\n');
+        fs.writeFileSync(listFilePath, listContent);
+
+        console.log(`Stitching segments using FFmpeg concat demuxer (stream copy)...`);
         return new Promise((resolve, reject) => {
-            const command = ffmpeg();
-
-            tempFiles.forEach(file => {
-                command.input(file);
-            });
-
-            command
+            ffmpeg()
+                .input(listFilePath)
+                .inputOptions(['-f', 'concat', '-safe', '0'])
+                .outputOptions(['-c', 'copy'])
                 .on('error', (err) => {
                     console.error('FFmpeg error:', err);
                     reject(err);
                 })
                 .on('end', () => {
                     console.log('Stitching finished successfully');
+                    // Cleanup temp files immediately after success
+                    try {
+                        fs.rmSync(tempDir, { recursive: true, force: true });
+                    } catch (cleanupErr) {
+                        console.error('Failed to cleanup temp files after stitching:', cleanupErr);
+                    }
                     resolve(outputPath);
                 })
-                .mergeToFile(outputPath, tempDir);
+                .save(outputPath);
         });
     } catch (error) {
         console.error('Error in stitchVideos:', error);
+        // Cleanup on error
+        try {
+            if (fs.existsSync(tempDir)) {
+                fs.rmSync(tempDir, { recursive: true, force: true });
+            }
+        } catch (cleanupErr) {
+            console.error('Failed to cleanup temp files after error:', cleanupErr);
+        }
         throw error;
-    } finally {
-        // Cleanup temp files
-        // In a real scenario, we'd delete them, but for now we'll keep them short-term
-        // setTimeout(() => {
-        //   fs.rmSync(tempDir, { recursive: true, force: true });
-        // }, 60000);
     }
 }
