@@ -967,31 +967,59 @@ export async function generateLessonImage(prompt: string): Promise<string | null
   }
 }
 
-export async function generateDeepVideoImage(lessonTitle: string, courseTitle: string): Promise<string | null> {
-  const prompt = `A professional teacher/tutor holding a teaching stick, standing in front of a clean whiteboard in a modern educational setting. The teacher is pointing at the whiteboard. The setting is bright and professional. The course is about "${courseTitle}", specifically the lesson "${lessonTitle}". Style: high-quality studio photography, professional lighting.`;
-
+export async function generateDeepVideoImage(
+  courseTitle: string,
+  moduleTitle: string,
+  lessons: { title: string; content: string }[]
+): Promise<string | null> {
   try {
-    console.log("Generating base image for video using gemini-3-pro-image-preview...");
-    // We use gemini-3-pro-image-preview as requested
-    const response = await ai.models.generateContent({
-      model: "gemini-3-pro-image-preview",
-      contents: prompt,
+    console.log("Designing high-quality whiteboard layout with Gemini Pro...");
+
+    const designPrompt = `You are an expert educational illustrator. Design a highly detailed whiteboard layout for a module introduction video.
+    
+    Course: "${courseTitle}"
+    Module: "${moduleTitle}"
+    Lessons to cover:
+    ${lessons.map((l, i) => `${i + 1}. ${l.title}`).join('\n')}
+    
+    The layout should look like a professional teacher has just finished a detailed lesson. 
+    It MUST include:
+    1. The Module Title at the top center, underlined.
+    2. A numbered list of the ${lessons.length} key learning objectives (the lesson titles).
+    3. A central "Whop App Architecture" styled diagram or a relevant flowchart/diagram that connects these concepts.
+    4. Small annotations, arrows, and handwritten-style notes in the margins.
+    5. Different "ink" colors (black for main text, red for highlights/underlines, blue for diagrams).
+    
+    Respond ONLY with a vivid, detailed image generation prompt for a text-to-image model. 
+    The prompt should describe: A professional teacher (male, friendly) standing on the far right, holding a wooden pointer, gesturing towards a large, edge-to-edge white whiteboard. The whiteboard is densely covered in neat, realistic handwriting and technical diagrams using blue, black, and red markers. The lighting is bright studio style. No blurred backgrounds, everything in sharp focus.
+    
+    Example output format: "Medium shot of a professional male instructor on the right... [vivid details of whiteboard content] ..."`;
+
+    const designResponse = await ai.models.generateContent({
+      model: "gemini-3-pro-preview", // Use pro for the prompt design
+      contents: designPrompt,
     });
 
-    // In a real scenario, we'd handle the image output. 
-    // For now, we'll try to get the image URL from the response or use a fallback if the SDK behavior is different.
-    // Assuming the response returns an image URL or data
+    const detailedPrompt = designResponse.text || `A professional teacher standing next to a whiteboard covered in detailed handwritten notes and diagrams about ${moduleTitle}. Professional lighting, 4k.`;
+    console.log("Calculated Detailed Prompt:", detailedPrompt);
+
+    console.log("Generating base image for video using gemini-3-pro-image-preview...");
+    const response = await ai.models.generateContent({
+      model: "gemini-3-pro-image-preview",
+      contents: detailedPrompt,
+    });
+
     const imageUrl = (response as any).image?.url || (response as any).images?.[0]?.url;
 
     if (!imageUrl) {
-      console.warn("gemini-3-pro-image-preview did not return an image URL, falling back to DeAPI");
-      return await generateCourseImageWithDeAPI(prompt);
+      console.warn("gemini-3-pro-image-preview did not return an image URL, falling back to DeAPI with the detailed prompt");
+      return await generateCourseImageWithDeAPI(detailedPrompt);
     }
 
     return imageUrl;
   } catch (error) {
     console.error("Failed to generate deep video image:", error);
-    return await generateCourseImageWithDeAPI(prompt); // Fallback
+    return null;
   }
 }
 
@@ -1001,9 +1029,15 @@ export async function generateVeoVideoSegment(imageData: string, segmentIndex: n
 
     // Veo 3.1 requires the generateVideos method and returns an operation
     // We poll the operation until it's finished
+    const segmentPrompts = [
+      "The teacher smiles warmly at the camera, introducing the course module and gesturing broadly towards the whole whiteboard. Professional and engaging.",
+      "The teacher uses his pointer to indicate the first few items on the whiteboard list, nodding as if explaining a key concept. Smooth animation.",
+      "The teacher points towards the central diagram on the whiteboard, making subtle hand gestures to emphasize connection between topics. Professional finish."
+    ];
+
     let operation = await (ai.models as any).generateVideos({
       model: "veo-3.1-fast-generate-preview",
-      prompt: "The teacher continues explaining, using subtle hand gestures and pointing at the whiteboard. The animation should be smooth and professional.",
+      prompt: segmentPrompts[segmentIndex] || "The teacher continues explaining, using subtle hand gestures and pointing at the whiteboard. The animation should be smooth and professional.",
       image: {
         imageBytes: imageData.replace(/^data:image\/[a-z]+;base64,/, ""),
         mimeType: "image/png"

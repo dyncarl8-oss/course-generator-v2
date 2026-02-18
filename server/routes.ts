@@ -245,16 +245,25 @@ async function startBackgroundMediaGeneration(options: {
             }
           }
 
-          // 2. Generate Video
-          console.log(`[Video Debug] Lesson ${lessonInfo.lessonId}: generateVideo=${generateVideo}, shouldGenerateVideo=${lessonPlan.shouldGenerateVideo}`);
-          if (generateVideo && lessonPlan.shouldGenerateVideo) {
+          // 2. Generate Video - Now at Module level (Module Introduction)
+          // We trigger video generation ONLY for the first lesson of a module if flagged
+          if (generateVideo && lessonPlan.shouldGenerateVideo && lessonPlan.lessonIndex === 0) {
             try {
-              console.log(`--- Starting Video Flow for lesson ${lessonInfo.lessonId} ---`);
-              const videoImagePrompt = (imagePlans.length > 0)
-                ? imagePlans[0].imageAlt
-                : `A professional teacher explaining lesson ${lessonPlan.lessonIndex + 1} of module ${modulePlan.moduleIndex + 1}`;
+              console.log(`--- Starting Module Intro Video Flow for Module ${modulePlan.moduleIndex + 1} ---`);
 
-              const baseImageUrl = await generateDeepVideoImage(videoImagePrompt, courseTitle);
+              const moduleContext = {
+                title: modules[modulePlan.moduleIndex].module_title,
+                lessons: modules[modulePlan.moduleIndex].lessons.map(l => ({
+                  title: l.lesson_title,
+                  content: l.content.substring(0, 200) // Provide summaries
+                }))
+              };
+
+              const baseImageUrl = await generateDeepVideoImage(
+                courseTitle,
+                moduleContext.title,
+                moduleContext.lessons
+              );
 
               if (baseImageUrl) {
                 const videoSegments: string[] = [];
@@ -263,27 +272,29 @@ async function startBackgroundMediaGeneration(options: {
                   if (segmentUrl) videoSegments.push(segmentUrl);
                 }
 
-                if (videoSegments.length === 3) {
+                if (videoSegments.length > 0) {
                   const outputDir = path.join(process.cwd(), "public", "uploads");
                   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
-                  const outputFilename = `video_${courseId}_${lessonInfo.lessonId}.mp4`;
+                  const outputFilename = `video_${courseId}_mod_${modulePlan.moduleIndex}.mp4`;
                   const outputPath = path.join(outputDir, outputFilename);
+
+                  // Stitch whatever we have (preferably 3)
                   await stitchVideos(videoSegments, outputPath);
 
                   const videoUrl = `/uploads/${outputFilename}`;
+
+                  // Attach video to the FIRST lesson of the module as an introduction
                   await storage.addLessonMedia(lessonInfo.lessonId, {
                     id: randomUUID(),
                     type: "video",
                     url: videoUrl,
-                    alt: "AI Generated Lesson Video",
-                    caption: "Course explanation with AI teacher",
-                    placement: 0,
-                    prompt: "AI Video Explanation",
+                    alt: `AI Generated Introduction for ${moduleContext.title}`,
+                    caption: `Module Intro: ${moduleContext.title}`,
+                    placement: 0, // Top of lesson
+                    prompt: `Module Intro Video`,
                   });
-                  console.log(`Successfully added final video ${videoUrl} to lesson ${lessonInfo.lessonId}`);
-                } else {
-                  console.warn(`Could only generate ${videoSegments.length}/3 segments for video. Skipping stitching.`);
+                  console.log(`Successfully added module video ${videoUrl} to lesson ${lessonInfo.lessonId}`);
                 }
               }
             } catch (vError) {
@@ -631,11 +642,14 @@ export async function registerRoutes(
         price: isFree === true ? "0" : (price || "0"),
         generationStatus: (generateLessonImages || generateVideo) ? "generating" : "complete",
       });
-
       const createdLessons: { moduleIndex: number; lessonIndex: number; lessonId: string }[] = [];
 
-      // Create all modules and their quizzes
-      const modulePromises = validated.data.modules.map(async (moduleData, i: number) => {
+      // Create all modules and lessons
+      // Optimization: Create modules sequentially to avoid DB contention, 
+      // but return metadata so we can return the response fast.
+      const createdModulesData = [];
+      for (let i = 0; i < validated.data.modules.length; i++) {
+        const moduleData = validated.data.modules[i];
         const module = await storage.createModule({
           courseId: course.id,
           title: moduleData.module_title,
@@ -653,28 +667,35 @@ export async function registerRoutes(
           });
         }
 
-        return { module, moduleIndex: i, lessons: moduleData.lessons };
-      });
-      const createdModules = await Promise.all(modulePromises);
-
-      // Create all lessons in parallel for faster response
-      const lessonPromises = createdModules.flatMap(({ module, moduleIndex, lessons }) =>
-        lessons.map((lessonData, j) =>
-          storage.createLesson({
+        const lessonsForThisModule = [];
+        for (let j = 0; j < moduleData.lessons.length; j++) {
+          const lessonData = moduleData.lessons[j];
+          const lesson = await storage.createLesson({
             moduleId: module.id,
             title: lessonData.lesson_title,
             content: lessonData.content,
             orderIndex: j,
-          }).then(lesson => ({ moduleIndex, lessonIndex: j, lessonId: lesson.id }))
-        )
-      );
-      const lessonResults = await Promise.all(lessonPromises);
-      createdLessons.push(...lessonResults);
+          });
+
+          const lessonMeta = { moduleIndex: i, lessonIndex: j, lessonId: lesson.id };
+          lessonsForThisModule.push(lessonMeta);
+          createdLessons.push(lessonMeta);
+        }
+
+        createdModulesData.push({ module, lessons: lessonsForThisModule });
+      }
+
+      console.log(`Course foundation created: ${course.id}. Total modules: ${createdModulesData.length}, lessons: ${createdLessons.length}`);
 
       // Return the course immediately - images will be generated in the background
       const courseWithModules = await storage.getCourseWithModules(course.id);
-      console.log(`Course foundation created: ${course.id}. Total modules: ${createdModules.length}, lessons: ${lessonResults.length}`);
+
+      if (!courseWithModules) {
+        throw new Error("Failed to retrieve course after creation");
+      }
+
       res.json(courseWithModules);
+      console.log("Successfully sent course creation response to UI");
 
       // Generate lesson media (images/video) in the background if enabled
       if (generateLessonImages || generateVideo) {
