@@ -1002,7 +1002,7 @@ export async function generateVeoVideoSegment(imageData: string, segmentIndex: n
     // Veo 3.1 requires the generateVideos method and returns an operation
     // We poll the operation until it's finished
     let operation = await (ai.models as any).generateVideos({
-      model: "veo-3.1-generate-preview",
+      model: "veo-3.1-fast-generate-preview",
       prompt: "The teacher continues explaining, using subtle hand gestures and pointing at the whiteboard. The animation should be smooth and professional.",
       image: {
         imageBytes: imageData.replace(/^data:image\/[a-z]+;base64,/, ""),

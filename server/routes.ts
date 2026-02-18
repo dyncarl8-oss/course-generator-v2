@@ -246,6 +246,7 @@ async function startBackgroundMediaGeneration(options: {
           }
 
           // 2. Generate Video
+          console.log(`[Video Debug] Lesson ${lessonInfo.lessonId}: generateVideo=${generateVideo}, shouldGenerateVideo=${lessonPlan.shouldGenerateVideo}`);
           if (generateVideo && lessonPlan.shouldGenerateVideo) {
             try {
               console.log(`--- Starting Video Flow for lesson ${lessonInfo.lessonId} ---`);

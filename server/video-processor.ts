@@ -16,10 +16,18 @@ if (ffmpegStatic) {
  * Downloads a video from a URL to a temporary file
  */
 async function downloadVideo(url: string, destPath: string): Promise<void> {
+    const isGoogleUrl = url.includes('generativelanguage.googleapis.com');
+    const headers: Record<string, string> = {};
+
+    if (isGoogleUrl && process.env.GEMINI_API_KEY) {
+        headers['x-goog-api-key'] = process.env.GEMINI_API_KEY;
+    }
+
     const response = await axios({
         url,
         method: 'GET',
         responseType: 'stream',
+        headers
     });
     await streamPipeline(response.data, fs.createWriteStream(destPath));
 }
