@@ -1006,8 +1006,8 @@ export async function generateVeoVideoSegment(imageData: string, segmentIndex: n
         { text: "The teacher continues explaining, using subtle hand gestures and pointing at the whiteboard. The animation should be smooth and professional." },
         {
           inlineData: {
-            mimeType: "image/png", // Assuming imageData is base64 or similar
-            data: imageData
+            mimeType: "image/png",
+            data: imageData.replace(/^data:image\/[a-z]+;base64,/, "")
           }
         }
       ],
