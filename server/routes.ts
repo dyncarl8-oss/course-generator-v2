@@ -539,8 +539,12 @@ export async function registerRoutes(
             let imagesFailed = 0;
             const maxRetries = 2;
 
-            for (const modulePlan of mediaPlan.modules) {
-              for (const lessonPlan of modulePlan.lessons) {
+            const modulesToProcess = (mediaPlan as any).modules || [];
+            for (let i = 0; i < modulesToProcess.length; i++) {
+              const modulePlan = modulesToProcess[i];
+              const lessonsToProcess = modulePlan.lessons || [];
+              for (let j = 0; j < lessonsToProcess.length; j++) {
+                const lessonPlan = lessonsToProcess[j];
                 // Normalize to images array
                 const imagePlans = lessonPlan.images || [];
 
@@ -549,7 +553,8 @@ export async function registerRoutes(
                 );
 
                 if (lessonInfo && imagePlans.length > 0) {
-                  for (const imagePlan of imagePlans) {
+                  for (let k = 0; k < imagePlans.length; k++) {
+                    const imagePlan = imagePlans[k];
                     let imageUrl: string | null = null;
                     let attempts = 0;
 
@@ -581,16 +586,23 @@ export async function registerRoutes(
                   }
                 }
 
-                // Handle Video Generation
+                // Handle Video Generation if enabled and this lesson is selected for video
+                console.log(`Checking video gen for lesson ${lessonInfo?.lessonId}: generateVideo=${generateVideo}, shouldGen=${lessonPlan.shouldGenerateVideo}, hasInfo=${!!lessonInfo}`);
                 if (generateVideo && lessonPlan.shouldGenerateVideo && lessonInfo) {
                   try {
-                    console.log(`--- Starting Video Generation for lesson ${lessonInfo.lessonId} ---`);
-                    const baseImageUrl = await generateDeepVideoImage(lessonPlan.images?.[0]?.imageAlt || "Explanation", validated.data.course_title);
+                    console.log(`--- Starting Video Generation Flow for lesson ${lessonInfo.lessonId} ---`);
+                    // Use a more descriptive prompt for the visual base image
+                    const videoImagePrompt = (lessonPlan.images && lessonPlan.images.length > 0)
+                      ? lessonPlan.images[0].imageAlt
+                      : `Professional teacher explaining ${lessonPlan.lessonIndex + 1} from module ${modulePlan.moduleIndex + 1}`;
+
+                    console.log(`Base image prompt: ${videoImagePrompt}`);
+                    const baseImageUrl = await generateDeepVideoImage(videoImagePrompt, validated.data.course_title);
 
                     if (baseImageUrl) {
                       const videoSegments: string[] = [];
-                      for (let i = 0; i < 3; i++) {
-                        const segmentUrl = await generateVeoVideoSegment(baseImageUrl, i);
+                      for (let k = 0; k < 3; k++) {
+                        const segmentUrl = await generateVeoVideoSegment(baseImageUrl, k);
                         if (segmentUrl) videoSegments.push(segmentUrl);
                       }
 
@@ -602,16 +614,19 @@ export async function registerRoutes(
                         const outputPath = path.join(outputDir, outputFilename);
                         await stitchVideos(videoSegments, outputPath);
 
+                        const videoUrl = `/uploads/${outputFilename}`;
+                        console.log(`Stitched video saved to: ${outputPath}`);
+
                         await storage.addLessonMedia(lessonInfo.lessonId, {
                           id: randomUUID(),
                           type: "video",
-                          url: `/uploads/${outputFilename}`,
+                          url: videoUrl,
                           alt: "AI Generated Lesson Video",
                           caption: "Course explanation with AI teacher",
                           placement: 0,
                           prompt: "AI Video Explanation",
                         });
-                        console.log(`Video added to lesson ${lessonInfo.lessonId}`);
+                        console.log(`Successfully added final video ${videoUrl} to lesson ${lessonInfo.lessonId}`);
                       }
                     }
                   } catch (vError) {

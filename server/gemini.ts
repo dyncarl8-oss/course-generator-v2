@@ -745,7 +745,10 @@ function generateFallbackMediaPlan(
     }),
   }));
 
-  return { modules: modulePlans };
+  return {
+    modules: modulePlans,
+    videoLesson: { moduleIndex: 0, lessonIndex: 0 }
+  };
 }
 
 export interface CourseMediaPlan {
