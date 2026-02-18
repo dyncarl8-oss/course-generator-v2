@@ -166,6 +166,161 @@ async function requireExperienceAccess(req: AuthenticatedRequest, res: Response,
   }
 }
 
+async function startBackgroundMediaGeneration(options: {
+  courseId: string;
+  creatorId: string;
+  companyId: string;
+  experienceId?: string;
+  courseTitle: string;
+  modules: any[];
+  generateLessonImages: boolean;
+  generateVideo: boolean;
+  createdLessons: { moduleIndex: number; lessonIndex: number; lessonId: string }[];
+}) {
+  const { courseId, creatorId, companyId, experienceId, courseTitle, modules, generateLessonImages, generateVideo, createdLessons } = options;
+
+  // Process images asynchronously without blocking the response
+  setTimeout(async () => {
+    try {
+      console.log(`=== Starting shared background media generation for course: ${courseTitle} ===`);
+      console.log("Flags - images:", generateLessonImages, "video:", generateVideo);
+
+      const mediaPlan = await generateCourseMediaPlan(courseTitle, modules);
+      console.log("Media plan generated:", JSON.stringify(mediaPlan, null, 2));
+
+      if (!mediaPlan || !Array.isArray((mediaPlan as any).modules)) {
+        console.error("Invalid media plan structure. modules array missing.");
+        throw new Error("Invalid media plan: missing modules");
+      }
+
+      let imagesGenerated = 0;
+      const maxRetries = 2;
+
+      const modulesToProcess = (mediaPlan as any).modules || [];
+      for (let i = 0; i < modulesToProcess.length; i++) {
+        const modulePlan = modulesToProcess[i];
+        const lessonsToProcess = modulePlan.lessons || [];
+
+        for (let j = 0; j < lessonsToProcess.length; j++) {
+          const lessonPlan = lessonsToProcess[j];
+          const imagePlans = lessonPlan.images || [];
+
+          const lessonInfo = createdLessons.find(
+            l => l.moduleIndex === modulePlan.moduleIndex && l.lessonIndex === lessonPlan.lessonIndex
+          );
+
+          if (!lessonInfo) continue;
+
+          // 1. Generate Images
+          if (generateLessonImages && imagePlans.length > 0) {
+            for (let k = 0; k < imagePlans.length; k++) {
+              const imagePlan = imagePlans[k];
+              let imageUrl: string | null = null;
+              let attempts = 0;
+
+              while (!imageUrl && attempts < maxRetries) {
+                attempts++;
+                try {
+                  console.log(`[Attempt ${attempts}/${maxRetries}] Generating image for lesson ${lessonInfo.lessonId}...`);
+                  imageUrl = await generateLessonImage(imagePlan.imagePrompt);
+                  if (!imageUrl && attempts < maxRetries) await new Promise(r => setTimeout(r, 2000));
+                } catch (e) {
+                  console.error(`Image generation attempt ${attempts} failed:`, e);
+                  if (attempts < maxRetries) await new Promise(r => setTimeout(r, 2000));
+                }
+              }
+
+              if (imageUrl) {
+                await storage.addLessonMedia(lessonInfo.lessonId, {
+                  id: randomUUID(),
+                  type: "image",
+                  url: imageUrl,
+                  alt: imagePlan.imageAlt || "",
+                  caption: "",
+                  placement: imagePlan.placement ?? 0,
+                  prompt: imagePlan.imagePrompt,
+                });
+                imagesGenerated++;
+              }
+            }
+          }
+
+          // 2. Generate Video
+          if (generateVideo && lessonPlan.shouldGenerateVideo) {
+            try {
+              console.log(`--- Starting Video Flow for lesson ${lessonInfo.lessonId} ---`);
+              const videoImagePrompt = (imagePlans.length > 0)
+                ? imagePlans[0].imageAlt
+                : `A professional teacher explaining lesson ${lessonPlan.lessonIndex + 1} of module ${modulePlan.moduleIndex + 1}`;
+
+              const baseImageUrl = await generateDeepVideoImage(videoImagePrompt, courseTitle);
+
+              if (baseImageUrl) {
+                const videoSegments: string[] = [];
+                for (let k = 0; k < 3; k++) {
+                  const segmentUrl = await generateVeoVideoSegment(baseImageUrl, k);
+                  if (segmentUrl) videoSegments.push(segmentUrl);
+                }
+
+                if (videoSegments.length === 3) {
+                  const outputDir = path.join(process.cwd(), "public", "uploads");
+                  if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+
+                  const outputFilename = `video_${courseId}_${lessonInfo.lessonId}.mp4`;
+                  const outputPath = path.join(outputDir, outputFilename);
+                  await stitchVideos(videoSegments, outputPath);
+
+                  const videoUrl = `/uploads/${outputFilename}`;
+                  await storage.addLessonMedia(lessonInfo.lessonId, {
+                    id: randomUUID(),
+                    type: "video",
+                    url: videoUrl,
+                    alt: "AI Generated Lesson Video",
+                    caption: "Course explanation with AI teacher",
+                    placement: 0,
+                    prompt: "AI Video Explanation",
+                  });
+                  console.log(`Successfully added final video ${videoUrl} to lesson ${lessonInfo.lessonId}`);
+                } else {
+                  console.warn(`Could only generate ${videoSegments.length}/3 segments for video. Skipping stitching.`);
+                }
+              }
+            } catch (vError) {
+              console.error("Video generation failed:", vError);
+            }
+          }
+        }
+      }
+
+      console.log(`=== Finished background generation for course ${courseId}. Success: ${imagesGenerated} images ===`);
+
+      // Update course status to complete
+      await storage.updateCourse(courseId, { generationStatus: "complete" });
+
+      // Send Whop notification
+      try {
+        const idForResolution = experienceId || companyId;
+        const realCompanyId = await getCompanyIdFromExperience(idForResolution);
+        if (realCompanyId) {
+          await sendNotification({
+            companyId: realCompanyId,
+            title: "Course Ready!",
+            content: `Your course "${courseTitle}" has finished generating. All media is now ready.`,
+            subtitle: `${imagesGenerated} images generated successfully`,
+            restPath: `${idForResolution}/courses/${courseId}/edit`,
+          });
+        }
+      } catch (notifyError) {
+        console.error("Failed to send notification:", notifyError);
+      }
+
+    } catch (mediaPlanError) {
+      console.error("Critical error in background generation:", mediaPlanError);
+      await storage.updateCourse(courseId, { generationStatus: "complete" });
+    }
+  }, 100);
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -521,165 +676,16 @@ export async function registerRoutes(
       res.json(courseWithModules);
 
       // Generate lesson media (images/video) in the background if enabled
-      console.log("generateLessonImages flag:", generateLessonImages, "generateVideo flag:", generateVideo);
       if (generateLessonImages || generateVideo) {
-        // Process images asynchronously without blocking the response
-        setTimeout(async () => {
-          try {
-            console.log("=== Starting background lesson media generation for course:", validated.data.course_title);
-
-            const mediaPlan = await generateCourseMediaPlan(
-              validated.data.course_title,
-              validated.data.modules
-            );
-
-            console.log("Media plan generated:", JSON.stringify(mediaPlan, null, 2));
-
-            let imagesGenerated = 0;
-            let imagesFailed = 0;
-            const maxRetries = 2;
-
-            const modulesToProcess = (mediaPlan as any).modules || [];
-            for (let i = 0; i < modulesToProcess.length; i++) {
-              const modulePlan = modulesToProcess[i];
-              const lessonsToProcess = modulePlan.lessons || [];
-              for (let j = 0; j < lessonsToProcess.length; j++) {
-                const lessonPlan = lessonsToProcess[j];
-                // Normalize to images array
-                const imagePlans = lessonPlan.images || [];
-
-                const lessonInfo = createdLessons.find(
-                  l => l.moduleIndex === modulePlan.moduleIndex && l.lessonIndex === lessonPlan.lessonIndex
-                );
-
-                if (lessonInfo && imagePlans.length > 0) {
-                  for (let k = 0; k < imagePlans.length; k++) {
-                    const imagePlan = imagePlans[k];
-                    let imageUrl: string | null = null;
-                    let attempts = 0;
-
-                    while (!imageUrl && attempts < maxRetries) {
-                      attempts++;
-                      try {
-                        console.log(`[Attempt ${attempts}/${maxRetries}] Generating image for lesson ${lessonInfo.lessonId}...`);
-                        imageUrl = await generateLessonImage(imagePlan.imagePrompt);
-                        if (!imageUrl && attempts < maxRetries) await new Promise(r => setTimeout(r, 2000));
-                      } catch (e) {
-                        if (attempts < maxRetries) await new Promise(r => setTimeout(r, 2000));
-                      }
-                    }
-
-                    if (imageUrl) {
-                      await storage.addLessonMedia(lessonInfo.lessonId, {
-                        id: randomUUID(),
-                        type: "image",
-                        url: imageUrl,
-                        alt: imagePlan.imageAlt || "",
-                        caption: "",
-                        placement: imagePlan.placement ?? 0,
-                        prompt: imagePlan.imagePrompt,
-                      });
-                      imagesGenerated++;
-                    } else {
-                      imagesFailed++;
-                    }
-                  }
-                }
-
-                // Handle Video Generation if enabled and this lesson is selected for video
-                console.log(`Checking video gen for lesson ${lessonInfo?.lessonId}: generateVideo=${generateVideo}, shouldGen=${lessonPlan.shouldGenerateVideo}, hasInfo=${!!lessonInfo}`);
-                if (generateVideo && lessonPlan.shouldGenerateVideo && lessonInfo) {
-                  try {
-                    console.log(`--- Starting Video Generation Flow for lesson ${lessonInfo.lessonId} ---`);
-                    // Use a more descriptive prompt for the visual base image
-                    const videoImagePrompt = (lessonPlan.images && lessonPlan.images.length > 0)
-                      ? lessonPlan.images[0].imageAlt
-                      : `Professional teacher explaining ${lessonPlan.lessonIndex + 1} from module ${modulePlan.moduleIndex + 1}`;
-
-                    console.log(`Base image prompt: ${videoImagePrompt}`);
-                    const baseImageUrl = await generateDeepVideoImage(videoImagePrompt, validated.data.course_title);
-
-                    if (baseImageUrl) {
-                      const videoSegments: string[] = [];
-                      for (let k = 0; k < 3; k++) {
-                        const segmentUrl = await generateVeoVideoSegment(baseImageUrl, k);
-                        if (segmentUrl) videoSegments.push(segmentUrl);
-                      }
-
-                      if (videoSegments.length === 3) {
-                        const outputDir = path.join(process.cwd(), "public", "uploads");
-                        if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
-
-                        const outputFilename = `video_${course.id}_${lessonInfo.lessonId}.mp4`;
-                        const outputPath = path.join(outputDir, outputFilename);
-                        await stitchVideos(videoSegments, outputPath);
-
-                        const videoUrl = `/uploads/${outputFilename}`;
-                        console.log(`Stitched video saved to: ${outputPath}`);
-
-                        await storage.addLessonMedia(lessonInfo.lessonId, {
-                          id: randomUUID(),
-                          type: "video",
-                          url: videoUrl,
-                          alt: "AI Generated Lesson Video",
-                          caption: "Course explanation with AI teacher",
-                          placement: 0,
-                          prompt: "AI Video Explanation",
-                        });
-                        console.log(`Successfully added final video ${videoUrl} to lesson ${lessonInfo.lessonId}`);
-                      }
-                    }
-                  } catch (vError) {
-                    console.error("Video generation failed:", vError);
-                  }
-                }
-              }
-            }
-
-            console.log(`=== Finished lesson media generation. Success: ${imagesGenerated} images`);
-
-            // Update course status to complete
-            await storage.updateCourse(course.id, { generationStatus: "complete" });
-
-            // Send Whop notification to the admin
-            try {
-              const realCompanyId = await getCompanyIdFromExperience(companyId);
-              if (realCompanyId) {
-                await sendNotification({
-                  companyId: realCompanyId,
-                  title: "Course Ready!",
-                  content: `Your course "${validated.data.course_title}" has finished generating. All lesson images are now ready.`,
-                  subtitle: `${imagesGenerated} images generated successfully`,
-                  restPath: `${companyId}/courses/${course.id}/edit`,
-                });
-                console.log("Notification sent to company:", realCompanyId);
-              } else {
-                console.log("Could not get company ID from experience:", companyId);
-              }
-            } catch (notifyError) {
-              console.error("Failed to send completion notification:", notifyError);
-            }
-
-          } catch (mediaPlanError) {
-            console.error("Failed to generate media plan:", mediaPlanError);
-            // Update status to complete even if image generation failed
-            await storage.updateCourse(course.id, { generationStatus: "complete" });
-
-            // Notify admin about the failure
-            try {
-              const realCompanyId = await getCompanyIdFromExperience(companyId);
-              if (realCompanyId) {
-                await sendNotification({
-                  companyId: realCompanyId,
-                  title: "Course Created",
-                  content: `Your course "${validated.data.course_title}" was created, but some lesson images could not be generated. You can add images manually in the course editor.`,
-                  restPath: `${companyId}/courses/${course.id}/edit`,
-                });
-              }
-            } catch (notifyError) {
-              console.error("Failed to send failure notification:", notifyError);
-            }
-          }
+        startBackgroundMediaGeneration({
+          courseId: course.id,
+          creatorId: req.user.id,
+          companyId,
+          courseTitle: validated.data.course_title,
+          modules: validated.data.modules as any,
+          generateLessonImages,
+          generateVideo: !!generateVideo,
+          createdLessons,
         });
       } else {
         console.log("Skipping lesson image generation (toggle disabled)");
@@ -1408,7 +1414,7 @@ export async function registerRoutes(
         req.user = await storage.getUser(req.user.id);
       }
 
-      const { generatedCourse, isFree, price, coverImage, generateLessonImages } = req.body;
+      const { generatedCourse, isFree, price, coverImage, generateLessonImages, generateVideo } = req.body;
       console.log(`[Experience Save] Creating course for user ${req.user.id}, experience: ${req.params.experienceId}, title: ${generatedCourse?.course_title}`);
 
       const validated = generatedCourseSchema.safeParse(generatedCourse);
@@ -1428,7 +1434,7 @@ export async function registerRoutes(
         published: false,
         isFree: isFree === true,
         price: isFree === true ? "0" : (price || "0"),
-        generationStatus: generateLessonImages ? "generating" : "complete",
+        generationStatus: (generateLessonImages || generateVideo) ? "generating" : "complete",
       });
       console.log(`[Experience Save] Course created in DB: ${course.id}`);
 
@@ -1473,146 +1479,21 @@ export async function registerRoutes(
       const lessonResults = await Promise.all(lessonPromises);
       createdLessons.push(...lessonResults);
 
-      // Return the course immediately - images will be generated in the background
-      const courseWithModules = await storage.getCourseWithModules(course.id);
-      res.json(courseWithModules);
-
-      // Generate lesson images in the background if enabled
-      const experienceId = req.params.experienceId;
-      console.log("generateLessonImages flag:", generateLessonImages);
-      if (generateLessonImages) {
-        // Process images asynchronously without blocking the response
-        setTimeout(async () => {
-          try {
-            console.log("=== Starting background lesson image generation for course:", validated.data.course_title);
-            console.log("Modules to process:", validated.data.modules.length);
-
-            const mediaPlan = await generateCourseMediaPlan(
-              validated.data.course_title,
-              validated.data.modules
-            );
-
-            console.log("Media plan generated:", JSON.stringify(mediaPlan, null, 2));
-
-            let imagesGenerated = 0;
-            let imagesFailed = 0;
-            const maxRetries = 2;
-
-            for (const modulePlan of mediaPlan) {
-              for (const lessonPlan of modulePlan.lessons) {
-                // Normalize to images array - handle both old format (shouldAddImage/imagePrompt) and new format (images[])
-                const imagePlans = Array.isArray(lessonPlan.images)
-                  ? lessonPlan.images
-                  : (lessonPlan as any).shouldAddImage && (lessonPlan as any).imagePrompt
-                    ? [{
-                      imagePrompt: (lessonPlan as any).imagePrompt,
-                      imageAlt: (lessonPlan as any).imageAlt ?? "",
-                      placement: (lessonPlan as any).placement ?? 0
-                    }]
-                    : [];
-
-                if (!imagePlans.length) continue;
-
-                const lessonInfo = createdLessons.find(
-                  l => l.moduleIndex === modulePlan.moduleIndex && l.lessonIndex === lessonPlan.lessonIndex
-                );
-
-                console.log(`Looking for lesson at module ${modulePlan.moduleIndex}, lesson ${lessonPlan.lessonIndex}:`, lessonInfo ? "found" : "not found");
-                console.log(`Images to generate for this lesson: ${imagePlans.length}`);
-
-                if (lessonInfo) {
-                  for (const imagePlan of imagePlans) {
-                    let imageUrl: string | null = null;
-                    let attempts = 0;
-
-                    // Retry logic for image generation
-                    while (!imageUrl && attempts < maxRetries) {
-                      attempts++;
-                      try {
-                        console.log(`[Attempt ${attempts}/${maxRetries}] Generating image for lesson ${lessonInfo.lessonId} at placement ${imagePlan.placement}...`);
-                        imageUrl = await generateLessonImage(imagePlan.imagePrompt);
-
-                        if (!imageUrl && attempts < maxRetries) {
-                          console.log(`Image generation returned null, retrying in 2 seconds...`);
-                          await new Promise(resolve => setTimeout(resolve, 2000));
-                        }
-                      } catch (imgError) {
-                        console.error(`Attempt ${attempts} failed for lesson ${lessonInfo.lessonId}:`, imgError);
-                        if (attempts < maxRetries) {
-                          await new Promise(resolve => setTimeout(resolve, 2000));
-                        }
-                      }
-                    }
-
-                    if (imageUrl) {
-                      const newMedia = {
-                        id: randomUUID(),
-                        type: "image" as const,
-                        url: imageUrl,
-                        alt: imagePlan.imageAlt || "",
-                        caption: "",
-                        placement: imagePlan.placement ?? 0,
-                        prompt: imagePlan.imagePrompt,
-                      };
-                      await storage.addLessonMedia(lessonInfo.lessonId, newMedia);
-                      imagesGenerated++;
-                      console.log(`Image added to lesson ${lessonInfo.lessonId} at placement ${imagePlan.placement}. Total images: ${imagesGenerated}`);
-                    } else {
-                      imagesFailed++;
-                      console.log(`Failed to generate image for lesson ${lessonInfo.lessonId} after ${maxRetries} attempts`);
-                    }
-                  }
-                }
-              }
-            }
-
-            console.log(`=== Finished lesson image generation. Success: ${imagesGenerated}, Failed: ${imagesFailed}`);
-
-            // Update course status to complete
-            await storage.updateCourse(course.id, { generationStatus: "complete" });
-
-            // Send Whop notification to the admin
-            try {
-              const realCompanyId = await getCompanyIdFromExperience(experienceId);
-              if (realCompanyId) {
-                await sendNotification({
-                  companyId: realCompanyId,
-                  title: "Course Ready!",
-                  content: `Your course "${validated.data.course_title}" has finished generating. All lesson images are now ready.`,
-                  subtitle: `${imagesGenerated} images generated successfully`,
-                  restPath: `${experienceId}/courses/${course.id}/edit`,
-                });
-                console.log("Notification sent to company:", realCompanyId);
-              } else {
-                console.log("Could not get company ID from experience:", experienceId);
-              }
-            } catch (notifyError) {
-              console.error("Failed to send completion notification:", notifyError);
-            }
-
-          } catch (mediaPlanError) {
-            console.error("Failed to generate media plan:", mediaPlanError);
-            // Update status to complete even if image generation failed
-            await storage.updateCourse(course.id, { generationStatus: "complete" });
-
-            // Notify admin about the failure
-            try {
-              const realCompanyId = await getCompanyIdFromExperience(experienceId);
-              if (realCompanyId) {
-                await sendNotification({
-                  companyId: realCompanyId,
-                  title: "Course Created",
-                  content: `Your course "${validated.data.course_title}" was created, but some lesson images could not be generated. You can add images manually in the course editor.`,
-                  restPath: `${experienceId}/courses/${course.id}/edit`,
-                });
-              }
-            } catch (notifyError) {
-              console.error("Failed to send failure notification:", notifyError);
-            }
-          }
+      // Generate lesson media (images/video) in the background if enabled
+      if (generateLessonImages || generateVideo) {
+        startBackgroundMediaGeneration({
+          courseId: course.id,
+          creatorId: req.user.id,
+          companyId: companyId || "",
+          experienceId: req.params.experienceId,
+          courseTitle: validated.data.course_title,
+          modules: validated.data.modules as any,
+          generateLessonImages: !!generateLessonImages,
+          generateVideo: !!generateVideo,
+          createdLessons,
         });
       } else {
-        console.log("Skipping lesson image generation (toggle disabled)");
+        console.log("Skipping lesson media generation (toggle disabled)");
       }
     } catch {
 
