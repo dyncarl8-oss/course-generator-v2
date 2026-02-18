@@ -70,7 +70,7 @@ export default function DashboardPage() {
   const [isGeneratingImages, setIsGeneratingImages] = useState(false);
 
   const saveMutation = useMutation({
-    mutationFn: async (courseData: { generatedCourse: GeneratedCourse; isFree: boolean; price: string; coverImage?: string; generateLessonImages?: boolean }) => {
+    mutationFn: async (courseData: { generatedCourse: GeneratedCourse; isFree: boolean; price: string; coverImage?: string; generateLessonImages?: boolean; generateVideo?: boolean }) => {
       return apiRequest("POST", `/api/dashboard/${companyId}/courses`, courseData);
     },
     onMutate: async (courseData) => {
@@ -92,7 +92,7 @@ export default function DashboardPage() {
           published: false,
           isFree: courseData.isFree,
           price: courseData.isFree ? "0" : courseData.price,
-          generationStatus: courseData.generateLessonImages ? "generating" as const : "complete" as const,
+          generationStatus: (courseData.generateLessonImages || courseData.generateVideo) ? "generating" as const : "complete" as const,
           createdAt: now,
           updatedAt: now,
           moduleCount: courseData.generatedCourse.modules.length,
@@ -140,7 +140,7 @@ export default function DashboardPage() {
     },
   });
 
-  const handleSaveCourse = async (options: { isFree: boolean; price: string; generateLessonImages: boolean }) => {
+  const handleSaveCourse = async (options: { isFree: boolean; price: string; generateLessonImages: boolean; generateVideo: boolean }) => {
     if (!generatedCourse || isGeneratingImage || saveMutation.isPending) return;
 
     // Store the course data before clearing state
@@ -176,6 +176,7 @@ export default function DashboardPage() {
       price: options.price,
       coverImage,
       generateLessonImages: options.generateLessonImages,
+      generateVideo: options.generateVideo,
     });
   };
 

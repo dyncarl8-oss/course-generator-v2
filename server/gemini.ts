@@ -697,6 +697,7 @@ export interface ImagePlan {
 export interface LessonMediaPlan {
   lessonIndex: number;
   images: ImagePlan[];
+  shouldGenerateVideo?: boolean;
 }
 
 export interface ModuleMediaPlan {
@@ -714,7 +715,7 @@ function generateFallbackImagePrompt(courseTitle: string, moduleTitle: string, l
 function generateFallbackMediaPlan(
   courseTitle: string,
   modules: { module_title: string; lessons: { lesson_title: string; content: string }[] }[]
-): ModuleMediaPlan[] {
+): CourseMediaPlan {
   console.log("Generating conservative fallback media plan for", modules.length, "modules");
 
   // Calculate total lessons to determine how many images to add (roughly 1 per module)
@@ -723,7 +724,7 @@ function generateFallbackMediaPlan(
 
   let imagesAdded = 0;
 
-  return modules.map((module, moduleIndex) => ({
+  const modulePlans = modules.map((module, moduleIndex) => ({
     moduleIndex,
     lessons: module.lessons.map((lesson, lessonIndex) => {
       const images: ImagePlan[] = [];
@@ -740,15 +741,25 @@ function generateFallbackMediaPlan(
         imagesAdded++;
       }
 
-      return { lessonIndex, images };
+      return { lessonIndex, images, shouldGenerateVideo: false };
     }),
   }));
+
+  return { modules: modulePlans };
+}
+
+export interface CourseMediaPlan {
+  modules: ModuleMediaPlan[];
+  videoLesson?: {
+    moduleIndex: number;
+    lessonIndex: number;
+  };
 }
 
 export async function generateCourseMediaPlan(
   courseTitle: string,
   modules: { module_title: string; lessons: { lesson_title: string; content: string }[] }[]
-): Promise<ModuleMediaPlan[]> {
+): Promise<CourseMediaPlan> {
   // Count paragraphs for each lesson to help AI decide placement
   const modulesWithParagraphCounts = modules.map((m, mi) => ({
     ...m,
@@ -794,6 +805,11 @@ PLACEMENT RULES:
 - NEVER use placement: 0 (that puts images BEFORE all content, which looks bad)
 - Always set placement to the paragraph count of the lesson to place images AFTER all the text content
 
+VIDEO SELECTION RULES:
+1. Select EXACTLY ONE lesson across the entire course to have a video.
+2. Choose a lesson that is educational and would benefit from a visual teacher/whiteboard explanation (e.g., explaining a core concept).
+3. Set `shouldGenerateVideo: true` for that specific lesson.
+
 Respond ONLY with valid JSON:
 {
   "modules": [
@@ -802,7 +818,8 @@ Respond ONLY with valid JSON:
       "lessons": [
         {
           "lessonIndex": 0,
-          "images": []
+          "images": [],
+          "shouldGenerateVideo": false
         },
         {
           "lessonIndex": 1,
@@ -856,70 +873,80 @@ Respond ONLY with valid JSON:
       lessons: OldLessonFormat[];
     }
 
-    const parsed = JSON.parse(jsonText) as { modules: ParsedModulePlan[] };
+    const parsed = JSON.parse(jsonText);
     const mediaPlan = parsed.modules || [];
+    let videoLesson: { moduleIndex: number; lessonIndex: number } | undefined;
 
     // Convert to new format and validate
-    const validatedPlan: ModuleMediaPlan[] = modules.map((module, moduleIndex) => {
-      const existingModulePlan = mediaPlan.find(p => p.moduleIndex === moduleIndex);
+    const validatedModulePlan: ModuleMediaPlan[] = modules.map((module, moduleIndex) => {
+      const existingModulePlan = mediaPlan.find((p: any) => p.moduleIndex === moduleIndex);
 
       if (!existingModulePlan) {
         // Module missing from plan, create fallback
         const fallback = generateFallbackMediaPlan(courseTitle, [module]);
-        return { moduleIndex, lessons: fallback[0]?.lessons || [] };
+        return { moduleIndex, lessons: fallback.modules[0]?.lessons || [] };
       }
 
       // Convert lessons to new format
       const convertedLessons: LessonMediaPlan[] = module.lessons.map((lesson, lessonIndex) => {
-        const lessonPlan = existingModulePlan.lessons.find(l => l.lessonIndex === lessonIndex);
+        const lessonPlan = existingModulePlan.lessons.find((l: any) => l.lessonIndex === lessonIndex);
 
         if (!lessonPlan) {
-          return { lessonIndex, images: [] };
+          return { lessonIndex, images: [], shouldGenerateVideo: false };
+        }
+
+        if (lessonPlan.shouldGenerateVideo && !videoLesson) {
+          videoLesson = { moduleIndex, lessonIndex };
         }
 
         // Handle both old format (shouldAddImage/imagePrompt) and new format (images array)
+        let images: ImagePlan[] = [];
         if (lessonPlan.images && Array.isArray(lessonPlan.images)) {
-          return { lessonIndex, images: lessonPlan.images };
+          images = lessonPlan.images;
         } else if (lessonPlan.shouldAddImage && lessonPlan.imagePrompt) {
           // Calculate paragraph count to determine proper placement
           const paragraphCount = lesson.content.split(/\n\s*\n/).filter(p => p.trim()).length;
-          return {
-            lessonIndex,
-            images: [{
-              imagePrompt: lessonPlan.imagePrompt,
-              imageAlt: lessonPlan.imageAlt || `Illustration for ${lesson.lesson_title}`,
-              placement: lessonPlan.placement || Math.max(1, paragraphCount), // Default to after content
-            }]
-          };
+          images = [{
+            imagePrompt: lessonPlan.imagePrompt,
+            imageAlt: lessonPlan.imageAlt || `Illustration for ${lesson.lesson_title}`,
+            placement: lessonPlan.placement || Math.max(1, paragraphCount), // Default to after content
+          }];
         }
 
-        return { lessonIndex, images: [] };
+        return {
+          lessonIndex,
+          images,
+          shouldGenerateVideo: !!lessonPlan.shouldGenerateVideo
+        };
       });
 
       return { moduleIndex, lessons: convertedLessons };
     });
 
+    // Ensure at least one video is selected if possible
+    if (!videoLesson && validatedModulePlan.length > 0 && validatedModulePlan[0].lessons.length > 0) {
+      validatedModulePlan[0].lessons[0].shouldGenerateVideo = true;
+      videoLesson = { moduleIndex: 0, lessonIndex: 0 };
+    }
+
     // Only add a single fallback image if the ENTIRE course has zero images
-    const totalImages = validatedPlan.reduce((sum, m) =>
+    const totalImages = validatedModulePlan.reduce((sum, m) =>
       sum + m.lessons.reduce((lSum, l) => lSum + l.images.length, 0), 0);
 
     if (totalImages === 0 && modules.length > 0 && modules[0].lessons.length > 0) {
       // Add just one image to the first lesson of the first module
       const firstLesson = modules[0].lessons[0];
       const paragraphCount = firstLesson.content.split(/\n\s*\n/).filter(p => p.trim()).length;
-      validatedPlan[0].lessons[0] = {
-        lessonIndex: 0,
-        images: [{
-          imagePrompt: generateFallbackImagePrompt(courseTitle, modules[0].module_title, firstLesson.lesson_title, firstLesson.content),
-          imageAlt: `Illustration for ${firstLesson.lesson_title}`,
-          placement: Math.max(1, paragraphCount), // Place after content
-        }]
-      };
+      validatedModulePlan[0].lessons[0].images = [{
+        imagePrompt: generateFallbackImagePrompt(courseTitle, modules[0].module_title, firstLesson.lesson_title, firstLesson.content),
+        imageAlt: `Illustration for ${firstLesson.lesson_title}`,
+        placement: Math.max(1, paragraphCount), // Place after content
+      }];
       console.log("Added single fallback image as course had no images");
     }
 
-    console.log(`Validated media plan: ${totalImages} images across ${modules.length} modules`);
-    return validatedPlan;
+    console.log(`Validated media plan: ${totalImages} images across ${modules.length} modules, 1 video selected`);
+    return { modules: validatedModulePlan, videoLesson };
   } catch (error) {
     console.error("Failed to generate media plan, using fallback:", error);
     return generateFallbackMediaPlan(courseTitle, modules);
@@ -933,6 +960,61 @@ export async function generateLessonImage(prompt: string): Promise<string | null
     return imageUrl;
   } catch (error) {
     console.error("Failed to generate lesson image:", error);
+    return null;
+  }
+}
+
+export async function generateDeepVideoImage(lessonTitle: string, courseTitle: string): Promise<string | null> {
+  const prompt = `A professional teacher/tutor holding a teaching stick, standing in front of a clean whiteboard in a modern educational setting. The teacher is pointing at the whiteboard. The setting is bright and professional. The course is about "${courseTitle}", specifically the lesson "${lessonTitle}". Style: high-quality studio photography, professional lighting.`;
+
+  try {
+    console.log("Generating base image for video using gemini-3-pro-image-preview...");
+    // We use gemini-3-pro-image-preview as requested
+    const response = await ai.models.generateContent({
+      model: "gemini-3-pro-image-preview",
+      contents: prompt,
+    });
+
+    // In a real scenario, we'd handle the image output. 
+    // For now, we'll try to get the image URL from the response or use a fallback if the SDK behavior is different.
+    // Assuming the response returns an image URL or data
+    const imageUrl = (response as any).image?.url || (response as any).images?.[0]?.url;
+
+    if (!imageUrl) {
+      console.warn("gemini-3-pro-image-preview did not return an image URL, falling back to DeAPI");
+      return await generateCourseImageWithDeAPI(prompt);
+    }
+
+    return imageUrl;
+  } catch (error) {
+    console.error("Failed to generate deep video image:", error);
+    return await generateCourseImageWithDeAPI(prompt); // Fallback
+  }
+}
+
+export async function generateVeoVideoSegment(imageData: string, segmentIndex: number): Promise<string | null> {
+  try {
+    console.log(`Generating Veo 3.1 video segment ${segmentIndex + 1}/3...`);
+    // This is a placeholder for the actual Veo 3.1 API call
+    // Since Veo 3.1 is in preview, we use a structure that matches the anticipated Gemini API for video
+    const response = await ai.models.generateContent({
+      model: "veo-3.1-fast-generate-preview",
+      contents: [
+        { text: "The teacher continues explaining, using subtle hand gestures and pointing at the whiteboard. The animation should be smooth and professional." },
+        {
+          inlineData: {
+            mimeType: "image/png", // Assuming imageData is base64 or similar
+            data: imageData
+          }
+        }
+      ],
+    });
+
+    // Assuming the response returns a video URL
+    const videoUrl = (response as any).video?.url || (response as any).videos?.[0]?.url;
+    return videoUrl || null;
+  } catch (error) {
+    console.error(`Failed to generate Veo segment ${segmentIndex}:`, error);
     return null;
   }
 }

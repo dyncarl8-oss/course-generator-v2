@@ -215,7 +215,7 @@ export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGen
 
 interface CoursePreviewProps {
   course: GeneratedCourse;
-  onSave: (options: { isFree: boolean; price: string; generateLessonImages: boolean }) => void;
+  onSave: (options: { isFree: boolean; price: string; generateLessonImages: boolean; generateVideo: boolean }) => void;
   onDiscard: () => void;
   isSaving: boolean;
   savingStatus?: string;
@@ -226,6 +226,7 @@ export function CoursePreview({ course, onSave, onDiscard, isSaving, savingStatu
   const [isFree, setIsFree] = useState(false);
   const [price, setPrice] = useState("29.99");
   const [generateLessonImages, setGenerateLessonImages] = useState(true);
+  const [generateVideo, setGenerateVideo] = useState(false);
 
   const toggleModule = (index: number) => {
     const newExpanded = new Set(expandedModules);
@@ -376,11 +377,30 @@ export function CoursePreview({ course, onSave, onDiscard, isSaving, savingStatu
               data-testid="switch-generate-images"
             />
           </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="video-toggle" className="text-sm font-medium">
+                Generate 1 AI Video
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {generateVideo
+                  ? "AI will generate a 24s video for the best lesson using Veo 3.1"
+                  : "Skip video generation for faster course creation"}
+              </p>
+            </div>
+            <Switch
+              id="video-toggle"
+              checked={generateVideo}
+              onCheckedChange={setGenerateVideo}
+              data-testid="switch-generate-video"
+            />
+          </div>
         </div>
 
         <div className="flex gap-3 pt-2">
           <Button
-            onClick={() => onSave({ isFree, price: isFree ? "0" : price, generateLessonImages })}
+            onClick={() => onSave({ isFree, price: isFree ? "0" : price, generateLessonImages, generateVideo })}
             disabled={isSaving || (!isFree && (!price || parseFloat(price) < 0))}
             className="flex-1"
             size="lg"

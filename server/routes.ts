@@ -2,7 +2,10 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { verifyUserToken, checkAccess, getUser as getWhopUser, createCheckoutConfiguration, verifyPaymentComplete, whop, sendNotification, getCompanyIdFromExperience } from "./whop";
-import { generateCourse, regenerateModule, regenerateLesson, generateCourseImage, generateImagePrompt, generateCourseMediaPlan, generateLessonImage, generateQuiz } from "./gemini";
+import { generateCourse, regenerateModule, regenerateLesson, generateCourseImage, generateImagePrompt, generateCourseMediaPlan, generateLessonImage, generateQuiz, generateDeepVideoImage, generateVeoVideoSegment } from "./gemini";
+import { stitchVideos } from "./video-processor";
+import path from "path";
+import fs from "fs";
 import { generateTTS } from "./tts";
 import { generatedCourseSchema } from "@shared/schema";
 import { randomUUID } from "crypto";
@@ -449,7 +452,7 @@ export async function registerRoutes(
         return res.status(401).json({ error: "User not found" });
       }
 
-      const { generatedCourse, isFree, price, coverImage, generateLessonImages } = req.body;
+      const { generatedCourse, isFree, price, coverImage, generateLessonImages, generateVideo } = req.body;
       const companyId = req.params.companyId;
 
       const validated = generatedCourseSchema.safeParse(generatedCourse);
@@ -470,7 +473,7 @@ export async function registerRoutes(
         published: false,
         isFree: isFree === true,
         price: isFree === true ? "0" : (price || "0"),
-        generationStatus: generateLessonImages ? "generating" : "complete",
+        generationStatus: (generateLessonImages || generateVideo) ? "generating" : "complete",
       });
 
       const createdLessons: { moduleIndex: number; lessonIndex: number; lessonId: string }[] = [];
@@ -517,14 +520,13 @@ export async function registerRoutes(
       console.log(`Course foundation created: ${course.id}. Total modules: ${createdModules.length}, lessons: ${lessonResults.length}`);
       res.json(courseWithModules);
 
-      // Generate lesson images in the background if enabled
-      console.log("generateLessonImages flag:", generateLessonImages);
-      if (generateLessonImages) {
+      // Generate lesson media (images/video) in the background if enabled
+      console.log("generateLessonImages flag:", generateLessonImages, "generateVideo flag:", generateVideo);
+      if (generateLessonImages || generateVideo) {
         // Process images asynchronously without blocking the response
         setTimeout(async () => {
           try {
-            console.log("=== Starting background lesson image generation for course:", validated.data.course_title);
-            console.log("Modules to process:", validated.data.modules.length);
+            console.log("=== Starting background lesson media generation for course:", validated.data.course_title);
 
             const mediaPlan = await generateCourseMediaPlan(
               validated.data.course_title,
@@ -537,75 +539,89 @@ export async function registerRoutes(
             let imagesFailed = 0;
             const maxRetries = 2;
 
-            for (const modulePlan of mediaPlan) {
+            for (const modulePlan of mediaPlan.modules) {
               for (const lessonPlan of modulePlan.lessons) {
-                // Normalize to images array - handle both old format (shouldAddImage/imagePrompt) and new format (images[])
-                const imagePlans = Array.isArray(lessonPlan.images)
-                  ? lessonPlan.images
-                  : (lessonPlan as any).shouldAddImage && (lessonPlan as any).imagePrompt
-                    ? [{
-                      imagePrompt: (lessonPlan as any).imagePrompt,
-                      imageAlt: (lessonPlan as any).imageAlt ?? "",
-                      placement: (lessonPlan as any).placement ?? 0
-                    }]
-                    : [];
-
-                if (!imagePlans.length) continue;
+                // Normalize to images array
+                const imagePlans = lessonPlan.images || [];
 
                 const lessonInfo = createdLessons.find(
                   l => l.moduleIndex === modulePlan.moduleIndex && l.lessonIndex === lessonPlan.lessonIndex
                 );
 
-                console.log(`Looking for lesson at module ${modulePlan.moduleIndex}, lesson ${lessonPlan.lessonIndex}:`, lessonInfo ? "found" : "not found");
-                console.log(`Images to generate for this lesson: ${imagePlans.length}`);
-
-                if (lessonInfo) {
+                if (lessonInfo && imagePlans.length > 0) {
                   for (const imagePlan of imagePlans) {
                     let imageUrl: string | null = null;
                     let attempts = 0;
 
-                    // Retry logic for image generation
                     while (!imageUrl && attempts < maxRetries) {
                       attempts++;
                       try {
-                        console.log(`[Attempt ${attempts}/${maxRetries}] Generating image for lesson ${lessonInfo.lessonId} at placement ${imagePlan.placement}...`);
+                        console.log(`[Attempt ${attempts}/${maxRetries}] Generating image for lesson ${lessonInfo.lessonId}...`);
                         imageUrl = await generateLessonImage(imagePlan.imagePrompt);
-
-                        if (!imageUrl && attempts < maxRetries) {
-                          console.log(`Image generation returned null, retrying in 2 seconds...`);
-                          await new Promise(resolve => setTimeout(resolve, 2000));
-                        }
-                      } catch (imgError) {
-                        console.error(`Attempt ${attempts} failed for lesson ${lessonInfo.lessonId}:`, imgError);
-                        if (attempts < maxRetries) {
-                          await new Promise(resolve => setTimeout(resolve, 2000));
-                        }
+                        if (!imageUrl && attempts < maxRetries) await new Promise(r => setTimeout(r, 2000));
+                      } catch (e) {
+                        if (attempts < maxRetries) await new Promise(r => setTimeout(r, 2000));
                       }
                     }
 
                     if (imageUrl) {
-                      const newMedia = {
+                      await storage.addLessonMedia(lessonInfo.lessonId, {
                         id: randomUUID(),
-                        type: "image" as const,
+                        type: "image",
                         url: imageUrl,
                         alt: imagePlan.imageAlt || "",
                         caption: "",
                         placement: imagePlan.placement ?? 0,
                         prompt: imagePlan.imagePrompt,
-                      };
-                      await storage.addLessonMedia(lessonInfo.lessonId, newMedia);
+                      });
                       imagesGenerated++;
-                      console.log(`Image added to lesson ${lessonInfo.lessonId} at placement ${imagePlan.placement}. Total images: ${imagesGenerated}`);
                     } else {
                       imagesFailed++;
-                      console.log(`Failed to generate image for lesson ${lessonInfo.lessonId} after ${maxRetries} attempts`);
                     }
+                  }
+                }
+
+                // Handle Video Generation
+                if (generateVideo && lessonPlan.shouldGenerateVideo && lessonInfo) {
+                  try {
+                    console.log(`--- Starting Video Generation for lesson ${lessonInfo.lessonId} ---`);
+                    const baseImageUrl = await generateDeepVideoImage(lessonPlan.images?.[0]?.imageAlt || "Explanation", validated.data.course_title);
+
+                    if (baseImageUrl) {
+                      const videoSegments: string[] = [];
+                      for (let i = 0; i < 3; i++) {
+                        const segmentUrl = await generateVeoVideoSegment(baseImageUrl, i);
+                        if (segmentUrl) videoSegments.push(segmentUrl);
+                      }
+
+                      if (videoSegments.length === 3) {
+                        const outputDir = path.join(process.cwd(), "public", "uploads");
+                        if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+
+                        const outputFilename = `video_${course.id}_${lessonInfo.lessonId}.mp4`;
+                        const outputPath = path.join(outputDir, outputFilename);
+                        await stitchVideos(videoSegments, outputPath);
+
+                        await storage.addLessonMedia(lessonInfo.lessonId, {
+                          id: randomUUID(),
+                          type: "video",
+                          url: `/uploads/${outputFilename}`,
+                          alt: "AI Generated Lesson Video",
+                          caption: "Course explanation with AI teacher",
+                          placement: 0,
+                          prompt: "AI Video Explanation",
+                        });
+                        console.log(`Video added to lesson ${lessonInfo.lessonId}`);
+                      }
+                    }
+                  } catch (vError) {
+                    console.error("Video generation failed:", vError);
                   }
                 }
               }
             }
 
-            console.log(`=== Finished lesson image generation. Success: ${imagesGenerated}, Failed: ${imagesFailed}`);
+            console.log(`=== Finished lesson media generation. Success: ${imagesGenerated} images`);
 
             // Update course status to complete
             await storage.updateCourse(course.id, { generationStatus: "complete" });
