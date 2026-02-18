@@ -998,24 +998,46 @@ export async function generateDeepVideoImage(lessonTitle: string, courseTitle: s
 export async function generateVeoVideoSegment(imageData: string, segmentIndex: number): Promise<string | null> {
   try {
     console.log(`Generating Veo 3.1 video segment ${segmentIndex + 1}/3...`);
-    // This is a placeholder for the actual Veo 3.1 API call
-    // Since Veo 3.1 is in preview, we use a structure that matches the anticipated Gemini API for video
-    const response = await ai.models.generateContent({
+
+    // Veo 3.1 requires the generateVideos method and returns an operation
+    // We poll the operation until it's finished
+    let operation = await (ai.models as any).generateVideos({
       model: "veo-3.1-fast-generate-preview",
-      contents: [
-        { text: "The teacher continues explaining, using subtle hand gestures and pointing at the whiteboard. The animation should be smooth and professional." },
-        {
-          inlineData: {
-            mimeType: "image/png",
-            data: imageData.replace(/^data:image\/[a-z]+;base64,/, "")
-          }
+      prompt: "The teacher continues explaining, using subtle hand gestures and pointing at the whiteboard. The animation should be smooth and professional.",
+      image: {
+        inlineData: {
+          mimeType: "image/png",
+          data: imageData.replace(/^data:image\/[a-z]+;base64,/, "")
         }
-      ],
+      }
     });
 
-    // Assuming the response returns a video URL
-    const videoUrl = (response as any).video?.url || (response as any).videos?.[0]?.url;
-    return videoUrl || null;
+    console.log(`Operation started: ${operation.name || 'pending'}`);
+
+    // Poll for completion (max 2 minutes)
+    const maxRetries = 24; // 24 * 5s = 120s
+    let retries = 0;
+
+    while (!operation.done && retries < maxRetries) {
+      retries++;
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
+      try {
+        operation = await (ai as any).operations.getVideosOperation({ operation });
+        console.log(`Polling segment ${segmentIndex + 1}/3... [${retries}/${maxRetries}] Status: ${operation.done ? 'Done' : 'Processing'}`);
+      } catch (pollError) {
+        console.warn(`Polling attempt ${retries} failed, retrying...`, pollError);
+      }
+    }
+
+    if (operation.done && operation.response) {
+      const videoUrl = operation.response.generatedVideos?.[0]?.video?.uri || operation.response.generatedVideos?.[0]?.video?.url;
+      console.log(`Successfully generated segment ${segmentIndex + 1}/3: ${videoUrl}`);
+      return videoUrl || null;
+    } else {
+      console.error(`Video generation timed out or failed for segment ${segmentIndex}. Done: ${operation.done}`);
+      return null;
+    }
   } catch (error) {
     console.error(`Failed to generate Veo segment ${segmentIndex}:`, error);
     return null;
