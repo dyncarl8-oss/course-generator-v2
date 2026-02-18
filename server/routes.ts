@@ -312,7 +312,7 @@ async function startBackgroundMediaGeneration(options: {
       // Send Whop notification
       try {
         const idForResolution = experienceId || companyId;
-        const realCompanyId = await getCompanyIdFromExperience(idForResolution);
+        const realCompanyId = idForResolution.startsWith("biz_") ? idForResolution : await getCompanyIdFromExperience(idForResolution);
         if (realCompanyId) {
           await sendNotification({
             companyId: realCompanyId,

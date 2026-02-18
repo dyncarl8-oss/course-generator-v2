@@ -982,18 +982,18 @@ export async function generateDeepVideoImage(
     Lessons to cover:
     ${lessons.map((l, i) => `${i + 1}. ${l.title}`).join('\n')}
     
-    The layout should look like a professional teacher has just finished a detailed lesson. 
-    It MUST include:
-    1. The Module Title at the top center, underlined.
-    2. A numbered list of the ${lessons.length} key learning objectives (the lesson titles).
-    3. A central "Whop App Architecture" styled diagram or a relevant flowchart/diagram that connects these concepts.
-    4. Small annotations, arrows, and handwritten-style notes in the margins.
-    5. Different "ink" colors (black for main text, red for highlights/underlines, blue for diagrams).
+    The whiteboard layout MUST include these sections in this exact order:
     
-    Respond ONLY with a vivid, detailed image generation prompt for a text-to-image model. 
-    The prompt should describe: A professional teacher (male, friendly) standing on the far right, holding a wooden pointer, gesturing towards a large, edge-to-edge white whiteboard. The whiteboard is densely covered in neat, realistic handwriting and technical diagrams using blue, black, and red markers. The lighting is bright studio style. No blurred backgrounds, everything in sharp focus.
+    TOP LEFT: A bold, large, underlined header "What You'll Learn" written in BLACK marker.
+    BELOW HEADER LEFT SIDE: A numbered list of the ${lessons.length} lesson topics (${lessons.map(l => `"${l.title}"`).join(', ')}), each with a small bullet or checkmark icon, written in neat BLACK handwriting with key terms underlined in RED.
+    RIGHT SIDE: A relevant technical diagram, flowchart, or mind-map that visually connects the lesson concepts. Use BLUE marker for diagram lines, RED for highlights, BLACK for labels. Include arrows showing relationships between concepts.
+    BOTTOM: Small handwritten annotations, tips, or key takeaways in blue ink.
+    TOP CENTER: The module title "${moduleTitle}" in large, bold handwriting.
     
-    Example output format: "Medium shot of a professional male instructor on the right... [vivid details of whiteboard content] ..."`;
+    Respond ONLY with a vivid, detailed image generation prompt for a text-to-image model.
+    The prompt MUST describe: A professional male teacher (friendly, confident, wearing a dark shirt) standing on the far right side of frame, holding a long wooden pointer stick, pointing it at the "What You'll Learn" section on the left. A large, edge-to-edge clean white whiteboard fills the background, densely covered in neat, realistic handwriting and technical diagrams. Multi-color markers used (black, red, blue). Bright professional studio lighting. Sharp focus on everything. High-quality 4K photography.
+    
+    Example output: "Wide shot of a professional male instructor standing on the right edge of the frame, holding a wooden pointer aimed at a large whiteboard. The whiteboard displays..."`;
 
     const designResponse = await ai.models.generateContent({
       model: "gemini-3-pro-preview", // Use pro for the prompt design
@@ -1030,9 +1030,9 @@ export async function generateVeoVideoSegment(imageData: string, segmentIndex: n
     // Veo 3.1 requires the generateVideos method and returns an operation
     // We poll the operation until it's finished
     const segmentPrompts = [
-      "The teacher smiles warmly at the camera, introducing the course module and gesturing broadly towards the whole whiteboard. Professional and engaging.",
-      "The teacher uses his pointer to indicate the first few items on the whiteboard list, nodding as if explaining a key concept. Smooth animation.",
-      "The teacher points towards the central diagram on the whiteboard, making subtle hand gestures to emphasize connection between topics. Professional finish."
+      "The teacher looks directly at the camera with a warm, welcoming smile, then sweeps his wooden pointer across the 'What You'll Learn' header on the top-left of the whiteboard. He speaks naturally as if saying 'Let me walk you through what you will learn in this module'. Smooth, professional animation.",
+      "The teacher turns to face the whiteboard and uses his pointer stick to tap each numbered item on the lesson list, one by one from top to bottom. He nods and gestures as if explaining each topic briefly. The pointer physically touches each bullet point. Smooth, natural animation.",
+      "The teacher steps slightly to the right and extends his pointer to trace the lines and arrows of the central diagram on the right side of the whiteboard. He makes small circular gestures around key diagram nodes, emphasizing the connections. He then turns back to the camera with a confident nod. Professional finish."
     ];
 
     let operation = await (ai.models as any).generateVideos({
