@@ -117,7 +117,7 @@ export default function ExperiencePage() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: async (courseData: { generatedCourse: GeneratedCourse; isFree: boolean; price: string; coverImage?: string; generateLessonImages?: boolean }) => {
+    mutationFn: async (courseData: { generatedCourse: GeneratedCourse; isFree: boolean; price: string; coverImage?: string; generateLessonImages?: boolean; generateVideo?: boolean }) => {
       console.log(`[Frontend Save] Sending save request to /api/experiences/${experienceId}/courses`);
       return apiRequest("POST", `/api/experiences/${experienceId}/courses`, courseData);
     },
@@ -140,7 +140,7 @@ export default function ExperiencePage() {
           published: false,
           isFree: courseData.isFree,
           price: courseData.isFree ? "0" : courseData.price,
-          generationStatus: courseData.generateLessonImages ? "generating" as const : "complete" as const,
+          generationStatus: (courseData.generateLessonImages || courseData.generateVideo) ? "generating" as const : "complete" as const,
           createdAt: now,
           updatedAt: now,
           moduleCount: courseData.generatedCourse.modules.length,
@@ -174,7 +174,7 @@ export default function ExperiencePage() {
     },
   });
 
-  const handleSaveCourse = async (options: { isFree: boolean; price: string; generateLessonImages: boolean }) => {
+  const handleSaveCourse = async (options: { isFree: boolean; price: string; generateLessonImages: boolean; generateVideo: boolean }) => {
     if (!generatedCourse || isGeneratingImage || saveMutation.isPending) return;
 
     // Store the course data before clearing state
@@ -201,8 +201,8 @@ export default function ExperiencePage() {
     // Show toast immediately
     toast({
       title: "Creating your course...",
-      description: options.generateLessonImages
-        ? "Your course is being created. You'll receive a notification when lesson images are ready."
+      description: (options.generateLessonImages || options.generateVideo)
+        ? "Your course is being created. You'll receive a notification when lesson media is ready."
         : "Your course is being created.",
     });
 
@@ -213,6 +213,7 @@ export default function ExperiencePage() {
       price: options.price,
       coverImage,
       generateLessonImages: options.generateLessonImages,
+      generateVideo: options.generateVideo,
     });
   };
 
