@@ -25,7 +25,6 @@ function repairJSON(jsonStr: string): string {
 
   for (let i = 0; i < jsonStr.length; i++) {
     const char = jsonStr[i];
-    const prevChar = i > 0 ? jsonStr[i - 1] : '';
 
     if (escapedNext) {
       result += char;
@@ -40,21 +39,14 @@ function repairJSON(jsonStr: string): string {
     }
 
     if (char === '"') {
-      if (inString) {
-        // Exiting a string
-        result += char;
-        inString = false;
-      } else {
-        // Entering a string
-        result += char;
-        inString = true;
-      }
+      result += char;
+      inString = !inString;
       continue;
     }
 
-    // If we're inside a string and find an unescaped quote marker, escape it
-    if (inString && char === '"' && prevChar !== '\\') {
-      result += '\\"';
+    // Replace actual newlines within strings with \n
+    if (inString && char === '\n') {
+      result += '\\n';
       continue;
     }
 
@@ -62,6 +54,32 @@ function repairJSON(jsonStr: string): string {
   }
 
   return result;
+}
+
+/**
+ * Robustly extracts and cleans JSON from a string that might contain markdown backticks,
+ * conversational preambles, or other extra text.
+ */
+function extractJSON(text: string): string {
+  let cleaned = text.trim();
+
+  // 1. Handle Markdown Code Blocks
+  // Matches ```json { ... } ``` or ``` { ... } ```
+  const markdownMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  if (markdownMatch && markdownMatch[1]) {
+    cleaned = markdownMatch[1].trim();
+  }
+
+  // 2. Locate first '{' and last '}'
+  // This handles conversational text before or after the JSON block
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+  }
+
+  return cleaned.trim();
 }
 
 async function generateWithFallback(options: GenerateOptions) {
@@ -218,19 +236,9 @@ export async function generateCourse(topic: string): Promise<GeneratedCourse> {
       throw new Error("Empty response from Gemini");
     }
 
-    console.log(`\n📝 Raw response(length: ${text?.length || 0}): ${text?.substring(0, 300)} `);
+    console.log(`\n📝 Raw response(length: ${text?.length || 0}): ${text?.substring(0, 300)}...`);
 
-    let jsonText = text.trim();
-    if (jsonText.startsWith("```json")) {
-      jsonText = jsonText.slice(7);
-    }
-    if (jsonText.startsWith("```")) {
-      jsonText = jsonText.slice(3);
-    }
-    if (jsonText.endsWith("```")) {
-      jsonText = jsonText.slice(0, -3);
-    }
-    jsonText = jsonText.trim();
+    const jsonText = extractJSON(text);
 
     let parsed;
     try {
@@ -323,10 +331,7 @@ export async function generateQuiz(
     const text = response.text;
     if (!text) throw new Error("Empty response for quiz");
 
-    let jsonText = text.trim();
-    if (jsonText.startsWith("```json")) jsonText = jsonText.slice(7);
-    if (jsonText.startsWith("```")) jsonText = jsonText.slice(3);
-    if (jsonText.endsWith("```")) jsonText = jsonText.slice(0, -3);
+    const jsonText = extractJSON(text);
 
     return JSON.parse(jsonText.trim());
   } catch (error) {
@@ -419,10 +424,7 @@ Create a comprehensive module with:
       throw new Error("Empty response from Gemini");
     }
 
-    let jsonText = text.trim();
-    if (jsonText.startsWith("```json")) jsonText = jsonText.slice(7);
-    if (jsonText.startsWith("```")) jsonText = jsonText.slice(3);
-    if (jsonText.endsWith("```")) jsonText = jsonText.slice(0, -3);
+    const jsonText = extractJSON(text);
 
     const result = JSON.parse(jsonText.trim());
     console.log(`✅ Module regenerated: "${result.module_title}" (${result.lessons.length} lessons)\n`);
@@ -488,10 +490,7 @@ Create a comprehensive lesson with:
       throw new Error("Empty response from Gemini");
     }
 
-    let jsonText = text.trim();
-    if (jsonText.startsWith("```json")) jsonText = jsonText.slice(7);
-    if (jsonText.startsWith("```")) jsonText = jsonText.slice(3);
-    if (jsonText.endsWith("```")) jsonText = jsonText.slice(0, -3);
+    const jsonText = extractJSON(text);
 
     const result = JSON.parse(jsonText.trim());
     console.log(`✅ Lesson regenerated: "${result.lesson_title}"\n`);
@@ -856,11 +855,7 @@ Respond ONLY with valid JSON:
       return generateFallbackMediaPlan(courseTitle, modules);
     }
 
-    let jsonText = text.trim();
-    if (jsonText.startsWith("```json")) jsonText = jsonText.slice(7);
-    if (jsonText.startsWith("```")) jsonText = jsonText.slice(3);
-    if (jsonText.endsWith("```")) jsonText = jsonText.slice(0, -3);
-    jsonText = jsonText.trim();
+    const jsonText = extractJSON(text);
 
     interface OldLessonFormat {
       lessonIndex: number;
