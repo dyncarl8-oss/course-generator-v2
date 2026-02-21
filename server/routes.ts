@@ -246,10 +246,10 @@ async function startBackgroundMediaGeneration(options: {
           }
 
           // 2. Generate Video - Now at Module level (Module Introduction)
-          // We trigger video generation ONLY for the first lesson of a module if flagged
-          if (generateVideo && lessonPlan.shouldGenerateVideo && lessonPlan.lessonIndex === 0) {
+          // We trigger video generation ONLY for the selected lesson flagged in the media plan
+          if (generateVideo && lessonPlan.shouldGenerateVideo) {
             try {
-              console.log(`--- Starting Module Intro Video Flow for Module ${modulePlan.moduleIndex + 1} ---`);
+              console.log(`--- Starting Lesson Video Flow for Lesson ${lessonInfo.lessonId} in Module ${modulePlan.moduleIndex + 1} ---`);
 
               const moduleContext = {
                 title: modules[modulePlan.moduleIndex].module_title,
