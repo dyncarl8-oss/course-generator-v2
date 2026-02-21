@@ -186,6 +186,8 @@ export interface IStorage {
 
   addAdminEarnings(amount: number): Promise<void>;
   deductAdminEarnings(adminId: string, amount: number): Promise<void>;
+
+  createFullCourseStructure(courseId: string, data: GeneratedCourse): Promise<{ moduleIndex: number; lessonIndex: number; lessonId: string }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -682,6 +684,56 @@ export class DatabaseStorage implements IStorage {
         "adminBalance.updatedAt": new Date(),
       },
     });
+  }
+
+  async createFullCourseStructure(courseId: string, data: GeneratedCourse): Promise<{ moduleIndex: number; lessonIndex: number; lessonId: string }[] | any> {
+    const createdLessons: { moduleIndex: number; lessonIndex: number; lessonId: string }[] = [];
+
+    for (let i = 0; i < data.modules.length; i++) {
+      const moduleData = data.modules[i];
+      const moduleId = randomUUID();
+
+      // Create module
+      await ModuleModel.create({
+        _id: moduleId,
+        courseId: courseId,
+        title: moduleData.module_title,
+        orderIndex: i,
+      });
+
+      // Create quiz if exists
+      if (moduleData.quiz) {
+        await QuizModel.create({
+          _id: randomUUID(),
+          moduleId: moduleId,
+          title: moduleData.quiz.title,
+          questions: moduleData.quiz.questions.map(q => ({
+            id: randomUUID(),
+            ...q,
+          })),
+        });
+      }
+
+      // Create lessons for this module
+      const lessonInsertions = moduleData.lessons.map((lessonData, j) => {
+        const lessonId = randomUUID();
+        createdLessons.push({ moduleIndex: i, lessonIndex: j, lessonId });
+        return {
+          _id: lessonId,
+          moduleId: moduleId,
+          title: lessonData.lesson_title,
+          content: lessonData.content,
+          orderIndex: j,
+          media: [],
+        };
+      });
+
+      if (lessonInsertions.length > 0) {
+        await LessonModel.insertMany(lessonInsertions);
+      }
+    }
+
+    return createdLessons;
   }
 }
 

@@ -642,50 +642,10 @@ export async function registerRoutes(
         price: isFree === true ? "0" : (price || "0"),
         generationStatus: (generateLessonImages || generateVideo) ? "generating" : "complete",
       });
-      const createdLessons: { moduleIndex: number; lessonIndex: number; lessonId: string }[] = [];
+      // Use the optimized batch insertion method
+      const createdLessons = await storage.createFullCourseStructure(course.id, validated.data);
 
-      // Create all modules and lessons
-      // Optimization: Create modules sequentially to avoid DB contention, 
-      // but return metadata so we can return the response fast.
-      const createdModulesData = [];
-      for (let i = 0; i < validated.data.modules.length; i++) {
-        const moduleData = validated.data.modules[i];
-        const module = await storage.createModule({
-          courseId: course.id,
-          title: moduleData.module_title,
-          orderIndex: i,
-        });
-
-        if (moduleData.quiz) {
-          await storage.createQuiz({
-            moduleId: module.id,
-            title: moduleData.quiz.title,
-            questions: moduleData.quiz.questions.map(q => ({
-              id: randomUUID(),
-              ...q,
-            })),
-          });
-        }
-
-        const lessonsForThisModule = [];
-        for (let j = 0; j < moduleData.lessons.length; j++) {
-          const lessonData = moduleData.lessons[j];
-          const lesson = await storage.createLesson({
-            moduleId: module.id,
-            title: lessonData.lesson_title,
-            content: lessonData.content,
-            orderIndex: j,
-          });
-
-          const lessonMeta = { moduleIndex: i, lessonIndex: j, lessonId: lesson.id };
-          lessonsForThisModule.push(lessonMeta);
-          createdLessons.push(lessonMeta);
-        }
-
-        createdModulesData.push({ module, lessons: lessonsForThisModule });
-      }
-
-      console.log(`Course foundation created: ${course.id}. Total modules: ${createdModulesData.length}, lessons: ${createdLessons.length}`);
+      console.log(`Course foundation created: ${course.id}. Total modules: ${validated.data.modules.length}, lessons: ${createdLessons.length}`);
 
       // Return the course immediately - images will be generated in the background
       const courseWithModules = await storage.getCourseWithModules(course.id);
@@ -1460,46 +1420,19 @@ export async function registerRoutes(
       });
       console.log(`[Experience Save] Course created in DB: ${course.id}`);
 
-      const createdLessons: { moduleIndex: number; lessonIndex: number; lessonId: string }[] = [];
+      // Use the optimized batch insertion method
+      const createdLessons = await storage.createFullCourseStructure(course.id, validated.data);
 
-      // Create all modules and their quizzes
-      const modulePromises = validated.data.modules.map(async (moduleData: any, i: number) => {
-        const module = await storage.createModule({
-          courseId: course.id,
-          title: moduleData.module_title,
-          orderIndex: i,
-        });
+      console.log(`[Experience Save] Course foundation created: ${course.id}. Total modules: ${validated.data.modules.length}, lessons: ${createdLessons.length}`);
 
-        if (moduleData.quiz) {
-          await storage.createQuiz({
-            moduleId: module.id,
-            title: moduleData.quiz.title,
-            questions: moduleData.quiz.questions.map((q: any) => ({
-              id: randomUUID(),
-              ...q,
-            })),
-          });
-        }
+      // Return the course immediately - images will be generated in the background
+      const courseWithModules = await storage.getCourseWithModules(course.id);
+      if (!courseWithModules) {
+        throw new Error("Failed to retrieve course after creation");
+      }
 
-        return { module, moduleIndex: i, lessons: moduleData.lessons };
-      });
-
-      const createdModules = await Promise.all(modulePromises);
-
-      // Create all lessons in parallel for faster response
-      const lessonPromises = createdModules.flatMap(({ module, moduleIndex, lessons }) =>
-        (lessons as any[]).map((lessonData, j) =>
-          storage.createLesson({
-            moduleId: module.id,
-            title: lessonData.lesson_title,
-            content: lessonData.content,
-            orderIndex: j,
-          }).then(lesson => ({ moduleIndex, lessonIndex: j, lessonId: lesson.id }))
-        )
-      );
-
-      const lessonResults = await Promise.all(lessonPromises);
-      createdLessons.push(...lessonResults);
+      res.json(courseWithModules);
+      console.log("[Experience Save] Successfully sent course creation response to UI");
 
       // Generate lesson media (images/video) in the background if enabled
       if (generateLessonImages || generateVideo) {

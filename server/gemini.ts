@@ -975,25 +975,24 @@ export async function generateDeepVideoImage(
   try {
     console.log("Designing high-quality whiteboard layout with Gemini Pro...");
 
-    const designPrompt = `You are an expert educational illustrator. Design a highly detailed whiteboard layout for a module introduction video.
+    const designPrompt = `You are an expert graphic designer and educational content creator. Design a premium, high-end educational presentation slide for a module introduction video.
     
     Course: "${courseTitle}"
     Module: "${moduleTitle}"
-    Lessons to cover:
+    Learning Objectives:
     ${lessons.map((l, i) => `${i + 1}. ${l.title}`).join('\n')}
     
-    The whiteboard layout MUST include these sections in this exact order:
-    
-    TOP LEFT: A bold, large, underlined header "What You'll Learn" written in BLACK marker.
-    BELOW HEADER LEFT SIDE: A numbered list of the ${lessons.length} lesson topics (${lessons.map(l => `"${l.title}"`).join(', ')}), each with a small bullet or checkmark icon, written in neat BLACK handwriting with key terms underlined in RED.
-    RIGHT SIDE: A relevant technical diagram, flowchart, or mind-map that visually connects the lesson concepts. Use BLUE marker for diagram lines, RED for highlights, BLACK for labels. Include arrows showing relationships between concepts.
-    BOTTOM: Small handwritten annotations, tips, or key takeaways in blue ink.
-    TOP CENTER: The module title "${moduleTitle}" in large, bold handwriting.
+    DESIGN REQUIREMENTS:
+    - STYLE: Professional, ultra-modern, glassmorphic aesthetic.
+    - BACKGROUND: Deep charcoal or navy blue with subtle glowing mesh gradients (dark purples and blues).
+    - TYPOGRAPHY: Large, bold, clean sans-serif font for the title "${moduleTitle}" at the top.
+    - CONTENT: A central "Glass" card containing a clear list of the ${lessons.length} lessons. Each lesson should have a small, sleek icon (like a glowing checkmark or geometric shape).
+    - VISUALS: Floating 3D geometric shapes (spheres, cubes) with a frosted glass texture and soft internal glow.
+    - LAYOUT: Symmetrical, balanced, and uncluttered. Use gold or cyan as highlight colors for accents.
+    - TEXT: Everything must be ultra-sharp and legible.
     
     Respond ONLY with a vivid, detailed image generation prompt for a text-to-image model.
-    The prompt MUST describe: A professional male teacher (friendly, confident, wearing a dark shirt) standing on the far right side of frame, holding a long wooden pointer stick, pointing it at the "What You'll Learn" section on the left. A large, edge-to-edge clean white whiteboard fills the background, densely covered in neat, realistic handwriting and technical diagrams. Multi-color markers used (black, red, blue). Bright professional studio lighting. Sharp focus on everything. High-quality 4K photography.
-    
-    Example output: "Wide shot of a professional male instructor standing on the right edge of the frame, holding a wooden pointer aimed at a large whiteboard. The whiteboard displays..."`;
+    The prompt MUST describe: A wide-angle, hyper-realistic master shot of a digital presentation screen. "High-end cinematic corporate presentation slide, glassmorphic UI elements, sharp professional typography, 8k resolution, Unreal Engine 5 render style, soft ambient lighting, premium educational aesthetic, no people, purely digital graphics."`;
 
     const designResponse = await ai.models.generateContent({
       model: "gemini-3-pro-preview", // Use pro for the prompt design
@@ -1030,9 +1029,9 @@ export async function generateVeoVideoSegment(imageData: string, segmentIndex: n
     // Veo 3.1 requires the generateVideos method and returns an operation
     // We poll the operation until it's finished
     const segmentPrompts = [
-      "The teacher looks directly at the camera with a warm, welcoming smile, then sweeps his wooden pointer across the 'What You'll Learn' header on the top-left of the whiteboard. He speaks naturally as if saying 'Let me walk you through what you will learn in this module'. Smooth, professional animation.",
-      "The teacher turns to face the whiteboard and uses his pointer stick to tap each numbered item on the lesson list, one by one from top to bottom. He nods and gestures as if explaining each topic briefly. The pointer physically touches each bullet point. Smooth, natural animation.",
-      "The teacher steps slightly to the right and extends his pointer to trace the lines and arrows of the central diagram on the right side of the whiteboard. He makes small circular gestures around key diagram nodes, emphasizing the connections. He then turns back to the camera with a confident nod. Professional finish."
+      "Cinematic slow-motion pan across the presentation slide. The central glass card gently shimmers with a soft light trail passing over it. The module title glows subtly. Professional, premium motion graphics style. Smooth 24fps.",
+      "The lesson list items animate with a soft glowing cascade effect, as if they are being highlighted or activated sequentially. Background geometric shapes slowly drift and rotate. Elegant, professional educational video feel.",
+      "A soft zoom into a central highlighted concept or graphic. Particles of light dance around the elements. The entire slide has a premium, 'Apple Keynote' style cinematic finish. Elegant and high-end."
     ];
 
     let operation = await (ai.models as any).generateVideos({
