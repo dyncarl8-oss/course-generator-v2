@@ -364,18 +364,18 @@ export function CourseGenerator({
                 )}
 
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between items-start gap-2.5 sm:gap-4">
+                    <Label className="text-sm font-semibold flex items-center gap-2 whitespace-nowrap">
                       {mode === "scratch" ? <PenTool className="h-4 w-4" /> : <Lightbulb className="h-4 w-4 text-amber-500" />}
                       {mode === "scratch" ? "Course Title" : "What is this course about?"}
                     </Label>
                     {generationLimit && (
-                      <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-                        <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-full border text-[10px] sm:text-[11px] font-bold uppercase tracking-wider transition-colors shadow-sm ${generationLimit.remaining > 0
-                            ? "bg-secondary/50 border-secondary/50 text-secondary-foreground"
-                            : "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-500/10 dark:border-amber-500/20 dark:text-amber-400"
+                      <div className="w-full sm:w-auto flex justify-start sm:justify-end">
+                        <div className={`flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 rounded-full border text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition-all shadow-sm ${generationLimit.remaining > 0
+                            ? "bg-secondary/40 border-secondary/40 text-secondary-foreground"
+                            : "bg-amber-50/80 border-amber-200/50 text-amber-700 dark:bg-amber-500/10 dark:border-amber-500/20 dark:text-amber-400"
                           }`}>
-                          <span>{generationLimit.remaining} / {generationLimit.limit} Daily Limit</span>
+                          <span className="whitespace-nowrap italic opacity-80">{generationLimit.remaining} / {generationLimit.limit} Daily Limit</span>
                           <span className="w-px h-3 bg-current/20" />
                           <span className="font-medium normal-case whitespace-nowrap">
                             Next reset: {formatResetTime(generationLimit.resetAt)}
