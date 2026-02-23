@@ -1912,17 +1912,17 @@ export async function registerRoutes(
         // Update payment status
         await storage.updatePaymentStatus(payment.id, "completed", paymentId);
 
-        // Add creator earnings (70% to creator, 30% platform fee)
+        // Add creator earnings (55% to creator, 45% platform fee)
         // TODO: Platform fee percentage can be made configurable in the future
-        const CREATOR_PERCENTAGE = 0.70; // Creator gets 70%, platform keeps 30%
-        const PLATFORM_PERCENTAGE = 0.30; // Platform gets 30%
+        const CREATOR_PERCENTAGE = 0.55; // Creator gets 55%, platform keeps 45%
+        const PLATFORM_PERCENTAGE = 0.45; // Platform gets 45%
         const totalAmount = Number(payment.amount);
         const creatorEarnings = totalAmount * CREATOR_PERCENTAGE;
         const platformEarnings = totalAmount * PLATFORM_PERCENTAGE;
         await storage.addCreatorEarnings(payment.creatorId, creatorEarnings);
         await storage.addAdminEarnings(platformEarnings);
 
-        console.log(`Payment verified and completed: course ${payment.courseId} for buyer ${payment.buyerId}, creator earnings: ${creatorEarnings.toFixed(2)} (70% of ${totalAmount.toFixed(2)}), platform earnings: ${platformEarnings.toFixed(2)} (30%)`);
+        console.log(`Payment verified and completed: course ${payment.courseId} for buyer ${payment.buyerId}, creator earnings: ${creatorEarnings.toFixed(2)} (55% of ${totalAmount.toFixed(2)}), platform earnings: ${platformEarnings.toFixed(2)} (45%)`);
         return res.json({ success: true, message: "Payment verified and access granted" });
       }
 
@@ -1943,17 +1943,17 @@ export async function registerRoutes(
         // Update payment status
         await storage.updatePaymentStatus(payment.id, "completed", verifyResult.paymentId);
 
-        // Add creator earnings (70% to creator, 30% platform fee)
+        // Add creator earnings (55% to creator, 45% platform fee)
         // TODO: Platform fee percentage can be made configurable in the future
-        const CREATOR_PERCENTAGE_API = 0.70; // Creator gets 70%, platform keeps 30%
-        const PLATFORM_PERCENTAGE_API = 0.30; // Platform gets 30%
+        const CREATOR_PERCENTAGE_API = 0.55; // Creator gets 55%, platform keeps 45%
+        const PLATFORM_PERCENTAGE_API = 0.45; // Platform gets 45%
         const totalAmountApi = Number(payment.amount);
         const creatorEarningsApi = totalAmountApi * CREATOR_PERCENTAGE_API;
         const platformEarningsApi = totalAmountApi * PLATFORM_PERCENTAGE_API;
         await storage.addCreatorEarnings(payment.creatorId, creatorEarningsApi);
         await storage.addAdminEarnings(platformEarningsApi);
 
-        console.log(`Payment verified via API: course ${payment.courseId} for buyer ${payment.buyerId}, creator earnings: ${creatorEarningsApi.toFixed(2)} (70% of ${totalAmountApi.toFixed(2)}), platform earnings: ${platformEarningsApi.toFixed(2)} (30%)`);
+        console.log(`Payment verified via API: course ${payment.courseId} for buyer ${payment.buyerId}, creator earnings: ${creatorEarningsApi.toFixed(2)} (55% of ${totalAmountApi.toFixed(2)}), platform earnings: ${platformEarningsApi.toFixed(2)} (45%)`);
         return res.json({ success: true, message: "Payment verified and access granted" });
       }
 
