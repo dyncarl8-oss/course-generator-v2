@@ -240,8 +240,8 @@ function CourseSidebar({
             className={cn(
               "w-full justify-start gap-2 shadow-sm transition-all duration-300 font-bold",
               isEditMode
-                ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200/50"
-                : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/20"
+                ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100"
+                : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/10"
             )}
             onClick={isEditMode ? () => exitEditMode() : enterEditMode}
           >
@@ -1130,16 +1130,16 @@ export default function CourseEditPage() {
                           initial={{ opacity: 0, scale: 0.8, x: 20 }}
                           animate={{ opacity: 1, scale: 1, x: 0 }}
                           exit={{ opacity: 0, scale: 0.8, x: 20 }}
-                          className="fixed top-20 right-4 z-[9999] pointer-events-auto"
+                          className="fixed top-32 right-4 z-[50] pointer-events-auto"
                         >
                           <Button
                             size="sm"
                             onClick={() => isEditMode ? exitEditMode() : enterEditMode()}
                             className={cn(
-                              "h-10 rounded-full shadow-2xl border transition-all active:scale-95 px-5",
+                              "h-10 rounded-full shadow-2xl border transition-all active:scale-95 px-5 font-bold",
                               isEditMode
-                                ? "bg-indigo-600 text-white hover:bg-indigo-700 font-bold border-indigo-400"
-                                : "bg-primary text-primary-foreground hover:bg-primary/90 font-extrabold border-primary/20"
+                                ? "bg-indigo-600 text-white hover:bg-indigo-700 border-indigo-400"
+                                : "bg-primary text-primary-foreground hover:bg-primary/90 border-primary/20"
                             )}
                           >
                             {isEditMode ? (
@@ -2151,19 +2151,13 @@ export default function CourseEditPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.2 }}
-                  className={cn(
-                    "fixed left-1/2 -translate-x-1/2 z-40",
-                    isMobile ? "bottom-24" : "top-20"
-                  )}
+                  className="fixed top-20 left-1/2 -translate-x-1/2 z-40"
                   data-testid="floating-save-button"
                 >
                   <Button
                     variant="default"
-                    size={isMobile ? "lg" : "sm"}
-                    className={cn(
-                      "shadow-2xl border-2 border-white/20",
-                      isMobile ? "rounded-full px-8 py-6 text-lg font-black h-auto bg-green-600 hover:bg-green-700" : ""
-                    )}
+                    size="sm"
+                    className="shadow-xl"
                     onClick={activeTab === "settings" ? () => updateCourseMutation.mutate({
                       title: title || course.title,
                       description: description || course.description,
