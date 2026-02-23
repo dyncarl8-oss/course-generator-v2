@@ -238,7 +238,7 @@ function CourseSidebar({
           <Button
             variant="default"
             className={cn(
-              "w-full justify-start gap-2 shadow-sm transition-all duration-300 font-bold",
+              "w-full justify-center gap-2 shadow-sm transition-all duration-300 font-bold",
               isEditMode
                 ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100"
                 : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/10"

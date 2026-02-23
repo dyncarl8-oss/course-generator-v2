@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import fileUpload from "express-fileupload";
-import pdf from "pdf-parse";
+import { PDFParse } from "pdf-parse";
 import { storage } from "./storage";
 import { verifyUserToken, checkAccess, getUser as getWhopUser, createCheckoutConfiguration, verifyPaymentComplete, whop, sendNotification, getCompanyIdFromExperience } from "./whop";
 import { generateCourse, regenerateModule, regenerateLesson, generateCourseImage, generateImagePrompt, generateCourseMediaPlan, generateLessonImage, generateQuiz, generateDeepVideoImage, generateVeoVideoSegment, analyzeDocumentMetadata, generateFallbackImagePrompt, generateBlockContent, generateCourseImageWithDeAPI } from "./gemini";
@@ -356,10 +356,13 @@ export async function registerRoutes(
       const file = req.files.document;
       let text = "";
 
+      console.log(`[Document Extraction] File: ${file.name}, Mime: ${file.mimetype}, Size: ${file.size} bytes`);
+
       if (file.mimetype === "application/pdf") {
-        const data = await pdf(file.data);
-        text = data.text;
-      } else if (file.mimetype === "text/plain") {
+        const parser = new PDFParse({ data: file.data });
+        const result = await parser.getText();
+        text = result.text;
+      } else if (file.mimetype === "text/plain" || file.name.endsWith(".txt")) {
         text = file.data.toString("utf8");
       } else {
         return res.status(400).json({ error: "Unsupported file type. Please upload PDF or TXT." });
