@@ -189,7 +189,8 @@ export function CourseGenerator({
       if (!startResponse.ok) {
         if (startResponse.status === 429) {
           const errorData = await startResponse.json().catch(() => ({}));
-          throw new Error(errorData.error || "Daily generation limit reached. Please try again tomorrow.");
+          const resetTime = errorData.resetAt ? formatResetTime(errorData.resetAt) : "midnight UTC";
+          throw new Error(errorData.error || `Daily generation limit reached. Resets at ${resetTime}.`);
         }
         if (startResponse.status === 403) {
           throw new Error("Permission denied. Please refresh or check your account permissions.");
@@ -369,13 +370,21 @@ export function CourseGenerator({
                       {mode === "scratch" ? "Course Title" : "What is this course about?"}
                     </Label>
                     {generationLimit && (
-                      <div className="flex items-center gap-2">
-                        <Badge variant={generationLimit.remaining > 0 ? "secondary" : "destructive"} className="text-[10px] py-0 px-1.5 h-4">
-                          {generationLimit.remaining} / {generationLimit.limit} generations left
+                      <div className="flex flex-col items-end gap-1.5 min-w-[140px]">
+                        <Badge
+                          variant={generationLimit.remaining > 0 ? "secondary" : "destructive"}
+                          className="text-[11px] py-1 px-2.5 h-auto font-bold uppercase tracking-wider"
+                        >
+                          {generationLimit.remaining} / {generationLimit.limit} Daily Generations
                         </Badge>
                         {generationLimit.remaining === 0 && (
-                          <span className="text-[9px] text-muted-foreground whitespace-nowrap">
+                          <span className="text-xs font-semibold text-destructive animate-pulse bg-destructive/5 px-2 py-0.5 rounded-md border border-destructive/10">
                             Resets at {formatResetTime(generationLimit.resetAt)}
+                          </span>
+                        )}
+                        {generationLimit.remaining > 0 && generationLimit.remaining < generationLimit.limit && (
+                          <span className="text-[10px] font-medium text-muted-foreground">
+                            Next reset: {formatResetTime(generationLimit.resetAt)}
                           </span>
                         )}
                       </div>
