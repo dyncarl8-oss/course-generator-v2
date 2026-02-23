@@ -1130,7 +1130,7 @@ export default function CourseEditPage() {
                           initial={{ opacity: 0, scale: 0.8, x: 20 }}
                           animate={{ opacity: 1, scale: 1, x: 0 }}
                           exit={{ opacity: 0, scale: 0.8, x: 20 }}
-                          className="fixed top-32 right-4 z-[50] pointer-events-auto"
+                          className="fixed top-20 right-4 z-[50] pointer-events-auto"
                         >
                           <Button
                             size="sm"
@@ -2151,7 +2151,10 @@ export default function CourseEditPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.2 }}
-                  className="fixed top-20 left-1/2 -translate-x-1/2 z-40"
+                  className={cn(
+                    "fixed top-20 z-40 transition-all duration-300",
+                    isMobile ? "left-4" : "left-1/2 -translate-x-1/2"
+                  )}
                   data-testid="floating-save-button"
                 >
                   <Button
