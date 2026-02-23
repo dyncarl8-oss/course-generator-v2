@@ -112,7 +112,7 @@ export function BlockEditor({ blocks, onChange, courseTitle, moduleTitle, lesson
     const moveBlock = (index: number, direction: 'up' | 'down') => {
         const newBlocks = [...localBlocks];
         const targetIndex = direction === 'up' ? index - 1 : index + 1;
-        
+
         if (targetIndex < 0 || targetIndex >= newBlocks.length) {
             if (onMoveOutside) {
                 onMoveOutside(index, direction);
@@ -193,7 +193,7 @@ export function BlockEditor({ blocks, onChange, courseTitle, moduleTitle, lesson
                                                     size="icon"
                                                     className="h-8 w-8 text-muted-foreground hover:bg-muted bg-background/50 backdrop-blur-sm shadow-sm border border-muted-foreground/10"
                                                     onClick={() => moveBlock(index, 'up')}
-                                                    disabled={index === 0}
+                                                    disabled={index === 0 && !onMoveOutside}
                                                 >
                                                     <ChevronUp className="h-4 w-4" />
                                                 </Button>
@@ -208,7 +208,7 @@ export function BlockEditor({ blocks, onChange, courseTitle, moduleTitle, lesson
                                                     size="icon"
                                                     className="h-8 w-8 text-muted-foreground hover:bg-muted bg-background/50 backdrop-blur-sm shadow-sm border border-muted-foreground/10"
                                                     onClick={() => moveBlock(index, 'down')}
-                                                    disabled={index === localBlocks.length - 1}
+                                                    disabled={index === localBlocks.length - 1 && !onMoveOutside}
                                                 >
                                                     <ChevronDown className="h-4 w-4" />
                                                 </Button>
