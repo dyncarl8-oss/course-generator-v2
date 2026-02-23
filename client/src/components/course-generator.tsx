@@ -260,9 +260,11 @@ export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGen
               Magic AI
             </TabsTrigger>
             <TabsTrigger value="guided" className="py-2.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm relative">
-              <PenTool className="h-4 w-4 mr-2 text-blue-500" />
-              Guided
-              <Badge variant="default" className="ml-1.5 h-4.5 px-1.5 text-[10px] bg-blue-600 hover:bg-blue-600 text-white border-none animate-pulse">NEW</Badge>
+              <span className="flex items-center justify-center">
+                <PenTool className="h-4 w-4 mr-2 text-blue-500" />
+                Guided
+              </span>
+              <Badge variant="default" className="absolute top-[-5px] right-[-10px] h-4 px-1 text-[9px] bg-gradient-to-r from-pink-500 to-orange-400 hover:from-pink-500 hover:to-orange-400 text-white border-none animate-pulse font-bold shadow-sm">NEW</Badge>
             </TabsTrigger>
             <TabsTrigger value="scratch" className="py-2.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
               <Layout className="h-4 w-4 mr-2 text-emerald-500" />
@@ -274,14 +276,14 @@ export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGen
             <CardContent className="p-6 space-y-6">
               <div className="space-y-4">
                 {mode === "guided" && (
-                  <div className="space-y-3 p-4 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl animate-in fade-in slide-in-from-top-4 duration-500">
+                  <div className="space-y-3 animate-in fade-in slide-in-from-top-4 duration-500">
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm font-semibold flex items-center gap-2 text-blue-700 dark:text-blue-400">
-                        <Upload className="h-4 w-4" />
+                      <Label className="text-sm font-semibold flex items-center gap-2">
+                        <Upload className="h-4 w-4 text-primary" />
                         Reference Documents
                       </Label>
-                      <Badge variant="secondary" className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-none text-[10px]">
-                        Auto-fills everything
+                      <Badge variant="secondary" className="bg-muted text-muted-foreground border-none text-[10px] uppercase tracking-wider font-bold">
+                        Auto-fills fields
                       </Badge>
                     </div>
 
@@ -296,27 +298,33 @@ export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGen
                       />
                       <label
                         htmlFor="file-upload"
-                        className={`flex flex-col items-center justify-center w-full min-h-[90px] border-2 border-dashed rounded-xl cursor-pointer transition-all
-                          ${isExtracting ? 'opacity-50 cursor-not-allowed bg-muted' : 'border-blue-200 dark:border-blue-800/50 hover:border-blue-400 bg-white/50 dark:bg-black/20 font-medium hover:bg-blue-50/80 dark:hover:bg-blue-900/20'}`}
+                        className={`flex flex-col items-center justify-center w-full min-h-[160px] border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-300
+                          ${isExtracting ? 'opacity-50 cursor-not-allowed bg-muted' : 'border-muted-foreground/10 bg-muted/20 hover:bg-muted/30 hover:border-primary/30 hover:shadow-inner'}`}
                       >
                         {isExtracting ? (
-                          <div className="flex flex-col items-center gap-2">
-                            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                          <div className="flex flex-col items-center gap-3">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
                             <span className="text-sm font-medium">Extracting content...</span>
                           </div>
                         ) : fileName ? (
-                          <div className="flex flex-col items-center gap-1">
-                            <FileText className="h-7 w-7 text-blue-600" />
-                            <span className="text-sm font-medium text-blue-700 dark:text-blue-400">{fileName}</span>
-                            <span className="text-[10px] text-muted-foreground">Click to change file</span>
+                          <div className="flex flex-col items-center gap-2">
+                            <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
+                              <FileText className="h-7 w-7 text-primary" />
+                            </div>
+                            <span className="text-sm font-semibold text-primary">{fileName}</span>
+                            <span className="text-xs text-muted-foreground">Click to change file</span>
                           </div>
                         ) : (
-                          <div className="flex flex-col items-center gap-1">
-                            <Upload className="h-6 w-6 text-blue-500 group-hover:text-blue-600 transition-colors" />
-                            <span className="text-sm font-medium text-blue-700 dark:text-blue-400">Upload PDF or TXT</span>
-                            <span className="text-[10px] text-blue-600/60 dark:text-blue-400/60 text-center px-4">
-                              Pro Tip: Uploading auto-populates title, audience, and outline!
-                            </span>
+                          <div className="flex flex-col items-center gap-3 p-6 text-center">
+                            <div className="h-12 w-12 rounded-full bg-primary/5 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                              <Upload className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-sm font-semibold">Upload PDF or Text File</span>
+                              <p className="text-xs text-muted-foreground max-w-[240px]">
+                                Pro Tip: Uploading a document will <span className="text-primary font-medium">auto-populate</span> the title, audience, and outline for you!
+                              </p>
+                            </div>
                           </div>
                         )}
                       </label>
