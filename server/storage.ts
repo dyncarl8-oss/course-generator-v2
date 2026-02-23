@@ -31,6 +31,7 @@ function docToUser(doc: any): User {
     whopCompanyId: doc.whopCompanyId || null,
     adminBalance: doc.adminBalance || undefined,
     hasUnlimitedAccess: doc.hasUnlimitedAccess || false,
+    lastGeneratedAt: doc.lastGeneratedAt,
     createdAt: doc.createdAt,
   };
 }

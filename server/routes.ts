@@ -441,10 +441,22 @@ export async function registerRoutes(
         };
       }
 
-      const allCreatorCourses = await storage.getCoursesByCreator(req.user.id);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const dailyGenerationCount = allCreatorCourses.filter(c => new Date(c.createdAt) >= today).length;
+      let dailyGenerationCount = 0;
+      let nextReset = null;
+
+      if (req.user.role === "creator" && !req.user.hasUnlimitedAccess && req.accessLevel !== "admin") {
+        if (req.user.lastGeneratedAt) {
+          const lastGen = new Date(req.user.lastGeneratedAt);
+          const now = new Date();
+          const msSinceLast = now.getTime() - lastGen.getTime();
+          const oneDayMs = 24 * 60 * 60 * 1000;
+
+          if (msSinceLast < oneDayMs) {
+            dailyGenerationCount = 1;
+            nextReset = lastGen.getTime() + oneDayMs;
+          }
+        }
+      }
 
       res.json({
         user: req.user,
@@ -452,6 +464,7 @@ export async function registerRoutes(
         companyId: req.params.companyId,
         earnings,
         dailyGenerationCount,
+        nextReset,
       });
     } catch {
 
@@ -551,18 +564,22 @@ export async function registerRoutes(
         return res.status(401).json({ error: "User not found" });
       }
 
-      // Check daily limit for creators
+      // Check daily limit for creators using persistent lastGeneratedAt
       if (req.user.role === "creator" && !req.user.hasUnlimitedAccess && req.accessLevel !== "admin") {
-        const creatorCourses = await storage.getCoursesByCreator(req.user.id);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const dailyCount = creatorCourses.filter(c => new Date(c.createdAt) >= today).length;
+        if (req.user.lastGeneratedAt) {
+          const lastGen = new Date(req.user.lastGeneratedAt);
+          const now = new Date();
+          const msSinceLast = now.getTime() - lastGen.getTime();
+          const oneDayMs = 24 * 60 * 60 * 1000;
 
-        if (dailyCount >= 1) {
-          return res.status(403).json({
-            error: "Daily limit reached",
-            message: "You have already generated 1 course today. Please try again tomorrow or upgrade for unlimited access."
-          });
+          if (msSinceLast < oneDayMs) {
+            const nextReset = lastGen.getTime() + oneDayMs;
+            return res.status(403).json({
+              error: "Daily limit reached",
+              message: "You have already generated a course in the last 24 hours. Creators on the free plan are limited to 1 course per day.",
+              nextReset
+            });
+          }
         }
       }
 
@@ -577,6 +594,11 @@ export async function registerRoutes(
         status: "pending",
         createdAt: Date.now(),
       });
+
+      // Update lastGeneratedAt immediately for persistent tracking
+      if (req.user.role === "creator" && !req.user.hasUnlimitedAccess && req.accessLevel !== "admin") {
+        await storage.updateUser(req.user.id, { lastGeneratedAt: new Date() });
+      }
 
       // Start generation in background
       (async () => {
@@ -1391,10 +1413,22 @@ export async function registerRoutes(
           })
         );
 
-        const allCreatorCourses = await storage.getCoursesByCreator(req.user.id);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const dailyGenerationCount = allCreatorCourses.filter(c => new Date(c.createdAt) >= today).length;
+        let dailyGenerationCount = 0;
+        let nextReset = null;
+
+        if (req.user.role === "creator" && !req.user.hasUnlimitedAccess && req.accessLevel !== "admin") {
+          if (req.user.lastGeneratedAt) {
+            const lastGen = new Date(req.user.lastGeneratedAt);
+            const now = new Date();
+            const msSinceLast = now.getTime() - lastGen.getTime();
+            const oneDayMs = 24 * 60 * 60 * 1000;
+
+            if (msSinceLast < oneDayMs) {
+              dailyGenerationCount = 1;
+              nextReset = lastGen.getTime() + oneDayMs;
+            }
+          }
+        }
 
         res.json({
           user: req.user,
@@ -1402,6 +1436,7 @@ export async function registerRoutes(
           experienceId: req.params.experienceId,
           accessLevel: req.accessLevel,
           dailyGenerationCount,
+          nextReset,
         });
       }
     } catch {
@@ -1441,18 +1476,22 @@ export async function registerRoutes(
         return res.status(401).json({ error: "User not found" });
       }
 
-      // Check daily limit for creators
+      // Check daily limit for creators using persistent lastGeneratedAt
       if (req.user.role === "creator" && !req.user.hasUnlimitedAccess && req.accessLevel !== "admin") {
-        const creatorCourses = await storage.getCoursesByCreator(req.user.id);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const dailyCount = creatorCourses.filter(c => new Date(c.createdAt) >= today).length;
+        if (req.user.lastGeneratedAt) {
+          const lastGen = new Date(req.user.lastGeneratedAt);
+          const now = new Date();
+          const msSinceLast = now.getTime() - lastGen.getTime();
+          const oneDayMs = 24 * 60 * 60 * 1000;
 
-        if (dailyCount >= 1) {
-          return res.status(403).json({
-            error: "Daily limit reached",
-            message: "You have already generated 1 course today. Please try again tomorrow or upgrade for unlimited access."
-          });
+          if (msSinceLast < oneDayMs) {
+            const nextReset = lastGen.getTime() + oneDayMs;
+            return res.status(403).json({
+              error: "Daily limit reached",
+              message: "You have already generated a course in the last 24 hours. Creators on the free plan are limited to 1 course per day.",
+              nextReset
+            });
+          }
         }
       }
 
@@ -1467,6 +1506,11 @@ export async function registerRoutes(
         status: "pending",
         createdAt: Date.now(),
       });
+
+      // Update lastGeneratedAt immediately for persistent tracking
+      if (req.user.role === "creator" && !req.user.hasUnlimitedAccess && req.accessLevel !== "admin") {
+        await storage.updateUser(req.user.id, { lastGeneratedAt: new Date() });
+      }
 
       // Start generation in background
       (async () => {

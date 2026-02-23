@@ -40,6 +40,7 @@ interface ExperienceData {
   accessLevel: "admin" | "customer" | "no_access";
   earnings?: { totalEarnings: number; availableBalance: number; pendingBalance: number };
   dailyGenerationCount: number;
+  nextReset: number | null;
 }
 
 export default function ExperiencePage() {
@@ -430,6 +431,7 @@ export default function ExperiencePage() {
                     dailyGenerationCount={data?.dailyGenerationCount}
                     hasUnlimitedAccess={(data?.user as any)?.hasUnlimitedAccess}
                     userRole={data?.user?.role}
+                    nextReset={data?.nextReset}
                   />
                 ) : (
                   <CoursePreview

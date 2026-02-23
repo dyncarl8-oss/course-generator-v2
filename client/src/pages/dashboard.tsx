@@ -31,6 +31,7 @@ interface DashboardData {
     pendingBalance: number;
   };
   dailyGenerationCount: number;
+  nextReset: number | null;
 }
 
 export default function DashboardPage() {
@@ -391,6 +392,7 @@ export default function DashboardPage() {
                   dailyGenerationCount={data?.dailyGenerationCount}
                   hasUnlimitedAccess={(data?.user as any)?.hasUnlimitedAccess}
                   userRole={data?.user?.role}
+                  nextReset={data?.nextReset}
                 />
               ) : (
                 <CoursePreview

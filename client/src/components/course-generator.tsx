@@ -22,6 +22,7 @@ interface CourseGeneratorProps {
   dailyGenerationCount?: number;
   hasUnlimitedAccess?: boolean;
   userRole?: string;
+  nextReset?: number | null;
 }
 
 const exampleTopics = [
@@ -31,8 +32,36 @@ const exampleTopics = [
   { icon: Palette, label: "Design", topic: "UI/UX Design Principles" },
 ];
 
-export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGenerating, apiBasePath, dailyGenerationCount = 0, hasUnlimitedAccess = false, userRole }: CourseGeneratorProps) {
+export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGenerating, apiBasePath, dailyGenerationCount = 0, hasUnlimitedAccess = false, userRole, nextReset: initialNextReset }: CourseGeneratorProps) {
   const hasReachedLimit = dailyGenerationCount >= 1 && !hasUnlimitedAccess && userRole !== "admin";
+  const [nextReset, setNextReset] = useState<number | null>(initialNextReset || null);
+  const [timeLeft, setTimeLeft] = useState<string>("");
+
+  useEffect(() => {
+    if (!nextReset) return;
+
+    const updateTimer = () => {
+      const now = Date.now();
+      const diff = nextReset - now;
+
+      if (diff <= 0) {
+        setNextReset(null);
+        setTimeLeft("");
+        return;
+      }
+
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setTimeLeft(`${hours}h ${minutes}m ${seconds}s`);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [nextReset]);
+
   const [topic, setTopic] = useState("");
   const [mode, setMode] = useState<"magic" | "guided" | "scratch">("magic");
 
@@ -177,7 +206,10 @@ export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGen
         }
 
         if (startResponse.status === 403) {
-          throw new Error("Permission denied. Please refresh or check your account permissions.");
+          if (errorData?.nextReset) {
+            setNextReset(errorData.nextReset);
+          }
+          throw new Error(errorData?.message || "Permission denied. Please refresh or check your account permissions.");
         }
         throw new Error("Failed to start course generation. Please try again.");
       }
@@ -439,7 +471,12 @@ export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGen
                     <div>
                       <h4 className="text-sm font-semibold text-amber-700">Daily limit reached</h4>
                       <p className="text-xs text-amber-600/80 mt-0.5 leading-relaxed">
-                        You have already generated 1 course today. Creators on the free plan are limited to 1 course per day. Check back tomorrow!
+                        You have already generated a course in the last 24 hours. Creators on the free plan are limited to 1 course per day.
+                        {timeLeft && (
+                          <span className="block mt-1 font-medium text-amber-700">
+                            Reset in: {timeLeft}
+                          </span>
+                        )}
                       </p>
                     </div>
                   </div>

@@ -15,6 +15,7 @@ export interface IUser extends Document {
     updatedAt: Date;
   };
   hasUnlimitedAccess: boolean;
+  lastGeneratedAt?: Date;
   createdAt: Date;
 }
 
@@ -169,6 +170,7 @@ const userSchema = new Schema<IUser>({
   whopCompanyId: { type: String },
   adminBalance: { type: adminBalanceSchema },
   hasUnlimitedAccess: { type: Boolean, default: false },
+  lastGeneratedAt: { type: Date },
   createdAt: { type: Date, default: Date.now, required: true },
 });
 
@@ -358,6 +360,7 @@ export type User = {
     updatedAt: Date;
   };
   hasUnlimitedAccess: boolean;
+  lastGeneratedAt?: Date;
   createdAt: Date;
 };
 
@@ -437,6 +440,7 @@ export type InsertUser = {
   role?: string;
   whopCompanyId?: string | null;
   hasUnlimitedAccess?: boolean;
+  lastGeneratedAt?: Date;
 };
 
 export type InsertCourse = {
