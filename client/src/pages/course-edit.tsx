@@ -91,7 +91,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Link } from "wouter";
-import { getEmbedUrl } from "@/lib/utils";
+import { cn, getEmbedUrl } from "@/lib/utils";
 import QuizEditor from "@/components/QuizEditor";
 import { MediaDialog } from "@/components/media-dialog";
 import { BlockEditor, BlockEditorToolbar } from "@/components/block-editor";
