@@ -322,7 +322,7 @@ export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGen
                             <div className="space-y-1">
                               <span className="text-sm font-semibold">Upload PDF or Text File</span>
                               <p className="text-xs text-muted-foreground max-w-[240px]">
-                                Pro Tip: Uploading a document will <span className="text-primary font-medium">auto-populate</span> the title, audience, and outline for you!
+                                Pro Tip: Uploading a document will <span className="text-primary font-medium">auto-populate everything</span> for you!
                               </p>
                             </div>
                           </div>
@@ -622,20 +622,23 @@ export function CoursePreview({ course, onSave, onDiscard, isSaving, savingStatu
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="video-toggle" className="text-sm font-medium">
-                Generate 1 AI Video
+                Generate AI Video
               </Label>
               <p className="text-xs text-muted-foreground">
-                {generateVideo
-                  ? "AI will generate a 24s video for the best lesson using Veo 3.1"
-                  : "Skip video generation for faster course creation"}
+                AI will generate a 20-30s video for each module.
               </p>
             </div>
-            <Switch
-              id="video-toggle"
-              checked={generateVideo}
-              onCheckedChange={setGenerateVideo}
-              data-testid="switch-generate-video"
-            />
+            <div className="flex items-center gap-3">
+              <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-none text-[10px] font-bold">
+                COMING SOON
+              </Badge>
+              <Switch
+                id="video-toggle"
+                checked={false}
+                disabled={true}
+                data-testid="switch-generate-video"
+              />
+            </div>
           </div>
         </div>
 
