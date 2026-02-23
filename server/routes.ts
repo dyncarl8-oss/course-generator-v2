@@ -552,7 +552,7 @@ export async function registerRoutes(
       }
 
       // Check daily limit for creators
-      if (req.user.role === "creator" && !req.user.hasUnlimitedAccess) {
+      if (req.user.role === "creator" && !req.user.hasUnlimitedAccess && req.accessLevel !== "admin") {
         const creatorCourses = await storage.getCoursesByCreator(req.user.id);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -1442,7 +1442,7 @@ export async function registerRoutes(
       }
 
       // Check daily limit for creators
-      if (req.user.role === "creator" && !req.user.hasUnlimitedAccess) {
+      if (req.user.role === "creator" && !req.user.hasUnlimitedAccess && req.accessLevel !== "admin") {
         const creatorCourses = await storage.getCoursesByCreator(req.user.id);
         const today = new Date();
         today.setHours(0, 0, 0, 0);

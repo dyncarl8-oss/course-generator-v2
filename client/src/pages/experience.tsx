@@ -429,6 +429,7 @@ export default function ExperiencePage() {
                     apiBasePath={`/api/experiences/${experienceId}`}
                     dailyGenerationCount={data?.dailyGenerationCount}
                     hasUnlimitedAccess={(data?.user as any)?.hasUnlimitedAccess}
+                    userRole={data?.user?.role}
                   />
                 ) : (
                   <CoursePreview

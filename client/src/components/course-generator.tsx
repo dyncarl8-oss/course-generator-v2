@@ -21,6 +21,7 @@ interface CourseGeneratorProps {
   apiBasePath?: string;
   dailyGenerationCount?: number;
   hasUnlimitedAccess?: boolean;
+  userRole?: string;
 }
 
 const exampleTopics = [
@@ -30,8 +31,8 @@ const exampleTopics = [
   { icon: Palette, label: "Design", topic: "UI/UX Design Principles" },
 ];
 
-export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGenerating, apiBasePath, dailyGenerationCount = 0, hasUnlimitedAccess = false }: CourseGeneratorProps) {
-  const hasReachedLimit = dailyGenerationCount >= 1 && !hasUnlimitedAccess;
+export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGenerating, apiBasePath, dailyGenerationCount = 0, hasUnlimitedAccess = false, userRole }: CourseGeneratorProps) {
+  const hasReachedLimit = dailyGenerationCount >= 1 && !hasUnlimitedAccess && userRole !== "admin";
   const [topic, setTopic] = useState("");
   const [mode, setMode] = useState<"magic" | "guided" | "scratch">("magic");
 
@@ -164,6 +165,17 @@ export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGen
       });
 
       if (!startResponse.ok) {
+        let errorData;
+        try {
+          errorData = await startResponse.json();
+        } catch (e) {
+          // Fallback if not JSON
+        }
+
+        if (errorData?.message) {
+          throw new Error(errorData.message);
+        }
+
         if (startResponse.status === 403) {
           throw new Error("Permission denied. Please refresh or check your account permissions.");
         }

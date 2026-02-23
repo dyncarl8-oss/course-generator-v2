@@ -390,6 +390,7 @@ export default function DashboardPage() {
                   setIsGenerating={setIsGenerating}
                   dailyGenerationCount={data?.dailyGenerationCount}
                   hasUnlimitedAccess={(data?.user as any)?.hasUnlimitedAccess}
+                  userRole={data?.user?.role}
                 />
               ) : (
                 <CoursePreview
