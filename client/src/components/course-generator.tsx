@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Sparkles, BookOpen, ChevronRight, Lightbulb, Code, Camera, Palette, TrendingUp, DollarSign, Upload, FileText, User, MessageSquare, Book, PenTool, Layout, Lock } from "lucide-react";
+import { Loader2, Sparkles, BookOpen, ChevronRight, Lightbulb, Code, Camera, Palette, TrendingUp, DollarSign, Upload, FileText, User, MessageSquare, Book, PenTool, Layout } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { GenerationProgress } from "@/components/generation-progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,10 +19,12 @@ interface CourseGeneratorProps {
   isGenerating: boolean;
   setIsGenerating: (generating: boolean) => void;
   apiBasePath?: string;
-  dailyGenerationCount?: number;
-  hasUnlimitedAccess?: boolean;
-  userRole?: string;
-  nextReset?: number | null;
+  generationLimit?: {
+    limit: number;
+    used: number;
+    remaining: number;
+    resetAt: string;
+  };
 }
 
 const exampleTopics = [
@@ -32,36 +34,14 @@ const exampleTopics = [
   { icon: Palette, label: "Design", topic: "UI/UX Design Principles" },
 ];
 
-export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGenerating, apiBasePath, dailyGenerationCount = 0, hasUnlimitedAccess = false, userRole, nextReset: initialNextReset }: CourseGeneratorProps) {
-  const hasReachedLimit = dailyGenerationCount >= 1 && !hasUnlimitedAccess;
-  const [nextReset, setNextReset] = useState<number | null>(initialNextReset || null);
-  const [timeLeft, setTimeLeft] = useState<string>("");
-
-  useEffect(() => {
-    if (!nextReset) return;
-
-    const updateTimer = () => {
-      const now = Date.now();
-      const diff = nextReset - now;
-
-      if (diff <= 0) {
-        setNextReset(null);
-        setTimeLeft("");
-        return;
-      }
-
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-      setTimeLeft(`${hours}h ${minutes}m ${seconds}s`);
-    };
-
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-    return () => clearInterval(interval);
-  }, [nextReset]);
-
+export function CourseGenerator({
+  companyId,
+  onGenerated,
+  isGenerating,
+  setIsGenerating,
+  apiBasePath,
+  generationLimit
+}: CourseGeneratorProps) {
   const [topic, setTopic] = useState("");
   const [mode, setMode] = useState<"magic" | "guided" | "scratch">("magic");
 
@@ -194,22 +174,12 @@ export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGen
       });
 
       if (!startResponse.ok) {
-        let errorData;
-        try {
-          errorData = await startResponse.json();
-        } catch (e) {
-          // Fallback if not JSON
+        if (startResponse.status === 429) {
+          const errorData = await startResponse.json().catch(() => ({}));
+          throw new Error(errorData.error || "Daily generation limit reached. Please try again tomorrow.");
         }
-
-        if (errorData?.message) {
-          throw new Error(errorData.message);
-        }
-
         if (startResponse.status === 403) {
-          if (errorData?.nextReset) {
-            setNextReset(errorData.nextReset);
-          }
-          throw new Error(errorData?.message || "Permission denied. Please refresh or check your account permissions.");
+          throw new Error("Permission denied. Please refresh or check your account permissions.");
         }
         throw new Error("Failed to start course generation. Please try again.");
       }
@@ -380,10 +350,24 @@ export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGen
                 )}
 
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium flex items-center gap-2">
-                    {mode === "scratch" ? <PenTool className="h-4 w-4" /> : <Lightbulb className="h-4 w-4 text-amber-500" />}
-                    {mode === "scratch" ? "Course Title" : "What is this course about?"}
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium flex items-center gap-2">
+                      {mode === "scratch" ? <PenTool className="h-4 w-4" /> : <Lightbulb className="h-4 w-4 text-amber-500" />}
+                      {mode === "scratch" ? "Course Title" : "What is this course about?"}
+                    </Label>
+                    {generationLimit && (
+                      <div className="flex items-center gap-2">
+                        <Badge variant={generationLimit.remaining > 0 ? "secondary" : "destructive"} className="text-[10px] py-0 px-1.5 h-4">
+                          {generationLimit.remaining} / {generationLimit.limit} generations left
+                        </Badge>
+                        {generationLimit.remaining === 0 && (
+                          <span className="text-[9px] text-muted-foreground">
+                            Resets at midnight UTC
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <Input
                     placeholder={mode === "scratch" ? "Enter course title..." : "e.g., 'Mastering Modern Portrait Photography'"}
                     value={topic}
@@ -462,31 +446,10 @@ export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGen
                 )}
               </div>
 
-              {hasReachedLimit && (
-                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <div className="flex items-start gap-3">
-                    <div className="h-8 w-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
-                      <Sparkles className="h-4 w-4 text-amber-600" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-semibold text-amber-700">Daily limit reached</h4>
-                      <p className="text-xs text-amber-600/80 mt-0.5 leading-relaxed">
-                        You have already generated a course in the last 24 hours. Creators on the free plan are limited to 1 course per day.
-                        {timeLeft && (
-                          <span className="block mt-1 font-medium text-amber-700">
-                            Reset in: {timeLeft}
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               <div className="pt-2">
                 <Button
                   onClick={handleGenerate}
-                  disabled={isGenerating || (mode !== "scratch" && !topic.trim()) || isExtracting || hasReachedLimit}
+                  disabled={isGenerating || (mode !== "scratch" && !topic.trim()) || isExtracting || (generationLimit && generationLimit.remaining === 0)}
                   className="w-full h-14 text-lg font-semibold rounded-xl shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99]"
                   size="lg"
                 >
@@ -494,11 +457,6 @@ export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGen
                     <>
                       <Loader2 className="mr-3 h-6 w-6 animate-spin" />
                       We're building your course...
-                    </>
-                  ) : hasReachedLimit ? (
-                    <>
-                      <Lock className="mr-2 h-5 w-5" />
-                      Daily Limit Reached
                     </>
                   ) : mode === "scratch" ? (
                     <>

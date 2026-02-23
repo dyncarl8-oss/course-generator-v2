@@ -34,12 +34,26 @@ setInterval(() => {
 
 // Custom type for requests that have been authenticated with Whop
 // We extend any as a fallback if express types are not properly loaded
-// Custom type for requests that have been authenticated with Whop
 interface AuthenticatedRequest {
   [key: string]: any;
   whopUserId?: string;
   user?: any;
   accessLevel?: "admin" | "customer" | "no_access";
+}
+
+const DAILY_GENERATION_LIMIT = 1;
+
+async function getGenerationLimit(userId: string) {
+  const used = await storage.getCoursesGeneratedToday(userId);
+  const resetAt = new Date();
+  resetAt.setUTCHours(23, 59, 59, 999);
+
+  return {
+    limit: DAILY_GENERATION_LIMIT,
+    used,
+    remaining: Math.max(0, DAILY_GENERATION_LIMIT - used),
+    resetAt: resetAt.toISOString(),
+  };
 }
 
 async function authenticateWhop(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -441,30 +455,14 @@ export async function registerRoutes(
         };
       }
 
-      let dailyGenerationCount = 0;
-      let nextReset = null;
-
-      if (!req.user.hasUnlimitedAccess) {
-        if (req.user.lastGeneratedAt) {
-          const lastGen = new Date(req.user.lastGeneratedAt);
-          const now = new Date();
-          const msSinceLast = now.getTime() - lastGen.getTime();
-          const oneDayMs = 24 * 60 * 60 * 1000;
-
-          if (msSinceLast < oneDayMs) {
-            dailyGenerationCount = 1;
-            nextReset = lastGen.getTime() + oneDayMs;
-          }
-        }
-      }
+      const generationLimit = await getGenerationLimit(req.user.id);
 
       res.json({
         user: req.user,
         courses: coursesWithStats,
         companyId: req.params.companyId,
         earnings,
-        dailyGenerationCount,
-        nextReset,
+        generationLimit,
       });
     } catch {
 
@@ -549,6 +547,14 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Topic is required" });
       }
 
+      const { remaining, resetAt } = await getGenerationLimit(req.user.id);
+      if (remaining <= 0) {
+        return res.status(429).json({
+          error: "Daily generation limit reached",
+          resetAt
+        });
+      }
+
       const generatedCourse = await generateCourse(topic, { tone, audience, outline, referenceText });
       res.json(generatedCourse);
     } catch (error: any) {
@@ -560,33 +566,18 @@ export async function registerRoutes(
   // Async version to handle timeouts
   app.post("/api/dashboard/:companyId/courses/generate-async", authenticateWhop, requireAdmin, async (req: AuthenticatedRequest, res: any) => {
     try {
-      if (!req.user) {
-        return res.status(401).json({ error: "User not found" });
-      }
-
-      // Check daily limit for all users using persistent lastGeneratedAt
-      if (!req.user.hasUnlimitedAccess) {
-        if (req.user.lastGeneratedAt) {
-          const lastGen = new Date(req.user.lastGeneratedAt);
-          const now = new Date();
-          const msSinceLast = now.getTime() - lastGen.getTime();
-          const oneDayMs = 24 * 60 * 60 * 1000;
-
-          if (msSinceLast < oneDayMs) {
-            const nextReset = lastGen.getTime() + oneDayMs;
-            return res.status(403).json({
-              error: "Daily limit reached",
-              message: "You have already generated a course in the last 24 hours. Free accounts are limited to 1 course per day.",
-              nextReset
-            });
-          }
-        }
-      }
-
       const { topic, tone, audience, outline, referenceText } = req.body;
 
       if (!topic || typeof topic !== "string") {
         return res.status(400).json({ error: "Topic is required" });
+      }
+
+      const { remaining, resetAt } = await getGenerationLimit(req.user.id);
+      if (remaining <= 0) {
+        return res.status(429).json({
+          error: "Daily generation limit reached",
+          resetAt
+        });
       }
 
       const jobId = randomUUID();
@@ -594,11 +585,6 @@ export async function registerRoutes(
         status: "pending",
         createdAt: Date.now(),
       });
-
-      // Update lastGeneratedAt immediately for persistent tracking
-      if (!req.user.hasUnlimitedAccess) {
-        await storage.updateUser(req.user.id, { lastGeneratedAt: new Date() });
-      }
 
       // Start generation in background
       (async () => {
@@ -1353,6 +1339,7 @@ export async function registerRoutes(
           experienceId: req.params.experienceId,
           accessLevel: req.accessLevel,
           earnings,
+          generationLimit: await getGenerationLimit(req.user.id),
         });
       } else {
         // Customer view - show published courses + unpublished courses user has access to
@@ -1413,30 +1400,12 @@ export async function registerRoutes(
           })
         );
 
-        let dailyGenerationCount = 0;
-        let nextReset = null;
-
-        if (!req.user.hasUnlimitedAccess) {
-          if (req.user.lastGeneratedAt) {
-            const lastGen = new Date(req.user.lastGeneratedAt);
-            const now = new Date();
-            const msSinceLast = now.getTime() - lastGen.getTime();
-            const oneDayMs = 24 * 60 * 60 * 1000;
-
-            if (msSinceLast < oneDayMs) {
-              dailyGenerationCount = 1;
-              nextReset = lastGen.getTime() + oneDayMs;
-            }
-          }
-        }
-
         res.json({
           user: req.user,
           courses: coursesWithAccess,
           experienceId: req.params.experienceId,
           accessLevel: req.accessLevel,
-          dailyGenerationCount,
-          nextReset,
+          generationLimit: req.user ? await getGenerationLimit(req.user.id) : null,
         });
       }
     } catch {
@@ -1457,6 +1426,14 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Topic is required" });
       }
 
+      const { remaining, resetAt } = await getGenerationLimit(req.user.id);
+      if (remaining <= 0) {
+        return res.status(429).json({
+          error: "Daily generation limit reached",
+          resetAt
+        });
+      }
+
       const generatedCourse = await generateCourse(topic, { tone, audience, outline, referenceText });
       res.json(generatedCourse);
     } catch {
@@ -1472,33 +1449,17 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Admin access required" });
       }
 
-      if (!req.user) {
-        return res.status(401).json({ error: "User not found" });
-      }
-
-      // Check daily limit for all users using persistent lastGeneratedAt
-      if (!req.user.hasUnlimitedAccess) {
-        if (req.user.lastGeneratedAt) {
-          const lastGen = new Date(req.user.lastGeneratedAt);
-          const now = new Date();
-          const msSinceLast = now.getTime() - lastGen.getTime();
-          const oneDayMs = 24 * 60 * 60 * 1000;
-
-          if (msSinceLast < oneDayMs) {
-            const nextReset = lastGen.getTime() + oneDayMs;
-            return res.status(403).json({
-              error: "Daily limit reached",
-              message: "You have already generated a course in the last 24 hours. Free accounts are limited to 1 course per day.",
-              nextReset
-            });
-          }
-        }
-      }
-
       const { topic, tone, audience, outline, referenceText } = req.body;
-
       if (!topic || typeof topic !== "string") {
         return res.status(400).json({ error: "Topic is required" });
+      }
+
+      const { remaining, resetAt } = await getGenerationLimit(req.user.id);
+      if (remaining <= 0) {
+        return res.status(429).json({
+          error: "Daily generation limit reached",
+          resetAt
+        });
       }
 
       const jobId = randomUUID();
@@ -1506,11 +1467,6 @@ export async function registerRoutes(
         status: "pending",
         createdAt: Date.now(),
       });
-
-      // Update lastGeneratedAt immediately for persistent tracking
-      if (!req.user.hasUnlimitedAccess) {
-        await storage.updateUser(req.user.id, { lastGeneratedAt: new Date() });
-      }
 
       // Start generation in background
       (async () => {

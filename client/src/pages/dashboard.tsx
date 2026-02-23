@@ -30,8 +30,12 @@ interface DashboardData {
     availableBalance: number;
     pendingBalance: number;
   };
-  dailyGenerationCount: number;
-  nextReset: number | null;
+  generationLimit?: {
+    limit: number;
+    used: number;
+    remaining: number;
+    resetAt: string;
+  };
 }
 
 export default function DashboardPage() {
@@ -389,10 +393,7 @@ export default function DashboardPage() {
                   onGenerated={setGeneratedCourse}
                   isGenerating={isGenerating}
                   setIsGenerating={setIsGenerating}
-                  dailyGenerationCount={data?.dailyGenerationCount}
-                  hasUnlimitedAccess={(data?.user as any)?.hasUnlimitedAccess}
-                  userRole={data?.user?.role}
-                  nextReset={data?.nextReset}
+                  generationLimit={data?.generationLimit}
                 />
               ) : (
                 <CoursePreview

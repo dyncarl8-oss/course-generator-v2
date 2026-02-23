@@ -30,8 +30,6 @@ function docToUser(doc: any): User {
     role: doc.role,
     whopCompanyId: doc.whopCompanyId || null,
     adminBalance: doc.adminBalance || undefined,
-    hasUnlimitedAccess: doc.hasUnlimitedAccess || false,
-    lastGeneratedAt: doc.lastGeneratedAt,
     createdAt: doc.createdAt,
   };
 }
@@ -159,7 +157,7 @@ export interface IStorage {
 
   getCourse(id: string): Promise<Course | undefined>;
   getCourseWithModules(id: string): Promise<CourseWithModules | undefined>;
-  getCoursesByCreator(creatorId: string, companyId?: string): Promise<Course[]>;
+  getCoursesByCreator(creatorId: string, companyId: string): Promise<Course[]>;
   getPublishedCourses(): Promise<Course[]>;
   getPublishedCoursesByCompany(companyId: string): Promise<CourseWithModules[]>;
   createCourse(course: InsertCourse): Promise<Course>;
@@ -202,6 +200,7 @@ export interface IStorage {
   addAdminEarnings(amount: number): Promise<void>;
   deductAdminEarnings(adminId: string, amount: number): Promise<void>;
 
+  getCoursesGeneratedToday(creatorId: string): Promise<number>;
   createFullCourseStructure(courseId: string, data: GeneratedCourse): Promise<{ moduleIndex: number; lessonIndex: number; lessonId: string }[]>;
 }
 
@@ -333,12 +332,8 @@ export class DatabaseStorage implements IStorage {
     return { ...course, modules: modulesWithLessons, creator };
   }
 
-  async getCoursesByCreator(creatorId: string, companyId?: string): Promise<Course[]> {
-    const query: any = { creatorId };
-    if (companyId) {
-      query.whopCompanyId = companyId;
-    }
-    const docs = await CourseModel.find(query).sort({ createdAt: -1 });
+  async getCoursesByCreator(creatorId: string, companyId: string): Promise<Course[]> {
+    const docs = await CourseModel.find({ creatorId, whopCompanyId: companyId }).sort({ createdAt: -1 });
     return docs.map(docToCourse);
   }
 
@@ -703,6 +698,23 @@ export class DatabaseStorage implements IStorage {
         "adminBalance.updatedAt": new Date(),
       },
     });
+  }
+
+  async getCoursesGeneratedToday(creatorId: string): Promise<number> {
+    const startOfDay = new Date();
+    startOfDay.setUTCHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setUTCHours(23, 59, 59, 999);
+
+    const count = await CourseModel.countDocuments({
+      creatorId,
+      createdAt: {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      },
+    });
+    return count;
   }
 
   async createFullCourseStructure(courseId: string, data: GeneratedCourse): Promise<{ moduleIndex: number; lessonIndex: number; lessonId: string }[] | any> {

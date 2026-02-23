@@ -14,8 +14,6 @@ export interface IUser extends Document {
     availableBalance: number;
     updatedAt: Date;
   };
-  hasUnlimitedAccess: boolean;
-  lastGeneratedAt?: Date;
   createdAt: Date;
 }
 
@@ -169,8 +167,6 @@ const userSchema = new Schema<IUser>({
   role: { type: String, default: "member", required: true },
   whopCompanyId: { type: String },
   adminBalance: { type: adminBalanceSchema },
-  hasUnlimitedAccess: { type: Boolean, default: false },
-  lastGeneratedAt: { type: Date },
   createdAt: { type: Date, default: Date.now, required: true },
 });
 
@@ -359,8 +355,6 @@ export type User = {
     availableBalance: number;
     updatedAt: Date;
   };
-  hasUnlimitedAccess: boolean;
-  lastGeneratedAt?: Date;
   createdAt: Date;
 };
 
@@ -439,8 +433,6 @@ export type InsertUser = {
   profilePicUrl?: string | null;
   role?: string;
   whopCompanyId?: string | null;
-  hasUnlimitedAccess?: boolean;
-  lastGeneratedAt?: Date;
 };
 
 export type InsertCourse = {
@@ -534,7 +526,6 @@ export const insertUserSchema = z.object({
   profilePicUrl: z.string().nullish(),
   role: z.string().optional(),
   whopCompanyId: z.string().nullish(),
-  hasUnlimitedAccess: z.boolean().optional(),
 });
 
 export const insertCourseThemeSchema = z.object({
