@@ -236,10 +236,12 @@ function CourseSidebar({
       {!isMobile && activeTab === "content" && (
         <SidebarFooter className="p-4 border-t">
           <Button
-            variant={isEditMode ? "default" : "outline"}
+            variant="default"
             className={cn(
-              "w-full justify-start gap-2",
-              isEditMode ? "bg-primary text-primary-foreground shadow-md" : "hover:bg-muted"
+              "w-full justify-start gap-2 shadow-sm transition-all duration-200",
+              isEditMode
+                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
             )}
             onClick={isEditMode ? () => exitEditMode() : enterEditMode}
           >
@@ -311,6 +313,7 @@ export default function CourseEditPage() {
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [pendingMediaDelete, setPendingMediaDelete] = useState<{ lessonId: string; mediaId: string } | null>(null);
   const [uploadingMediaId, setUploadingMediaId] = useState<string | null>(null);
+  const [showMobileScrollButton, setShowMobileScrollButton] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
 
@@ -343,6 +346,19 @@ export default function CourseEditPage() {
     }
     prevModuleIdRef.current = selectedModuleId;
   }, [selectedModuleId]);
+
+  // Handle scroll for mobile floating edit button
+  useEffect(() => {
+    const mainContent = mainContentRef.current;
+    if (!mainContent || !isMobile) return;
+
+    const handleScroll = () => {
+      setShowMobileScrollButton(mainContent.scrollTop > 200);
+    };
+
+    mainContent.addEventListener('scroll', handleScroll);
+    return () => mainContent.removeEventListener('scroll', handleScroll);
+  }, [isMobile]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1061,48 +1077,80 @@ export default function CourseEditPage() {
               <div key={selectedModuleId} className="max-w-3xl mx-auto py-6 pb-24 px-4 sm:px-6">
                 {course.modules.length > 0 ? (
                   <>
-                    {/* Course Stats & Edit Button - Sticky on Mobile */}
-                    <div className="sticky top-0 z-30 -mx-4 px-4 py-4 md:static md:px-0 md:py-0 md:bg-transparent bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b md:border-none mb-6">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4" data-testid="course-stats">
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground order-2 sm:order-1">
-                          <span className="flex items-center gap-1.5 min-w-fit">
-                            <Layers className="h-3.5 w-3.5" />
-                            {course.modules.length} modules
-                          </span>
-                          <span className="flex items-center gap-1.5 min-w-fit">
-                            <BookOpen className="h-3.5 w-3.5" />
-                            {totalLessons} lessons
-                          </span>
-                          <span className="flex items-center gap-1.5 min-w-fit font-medium text-foreground">
-                            <DollarSign className="h-3.5 w-3.5" />
-                            {course.isFree ? "Free" : `$${parseFloat(course.price || "0").toFixed(2)}`}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 order-1 sm:order-2">
-                          <Button
-                            variant={isEditMode ? "secondary" : "default"}
-                            size="sm"
-                            onClick={() => isEditMode ? exitEditMode() : enterEditMode()}
-                            className="w-full sm:w-auto h-9 sm:h-8 md:hidden"
-                            data-testid="button-toggle-edit"
-                          >
-                            {isEditMode ? (
-                              <>
-                                <X className="h-4 w-4 mr-1.5" />
-                                Done Editing
-                              </>
-                            ) : (
-                              <>
-                                <Edit className="h-3.5 w-3.5 mr-1.5" />
-                                Edit Mode
-                              </>
-                            )}
-                          </Button>
-                        </div>
+                    {/* Course Stats & Edit Button */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6" data-testid="course-stats">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground order-2 sm:order-1">
+                        <span className="flex items-center gap-1.5 min-w-fit">
+                          <Layers className="h-3.5 w-3.5" />
+                          {course.modules.length} modules
+                        </span>
+                        <span className="flex items-center gap-1.5 min-w-fit">
+                          <BookOpen className="h-3.5 w-3.5" />
+                          {totalLessons} lessons
+                        </span>
+                        <span className="flex items-center gap-1.5 min-w-fit font-medium text-foreground">
+                          <DollarSign className="h-3.5 w-3.5" />
+                          {course.isFree ? "Free" : `$${parseFloat(course.price || "0").toFixed(2)}`}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 order-1 sm:order-2">
+                        <Button
+                          variant={isEditMode ? "secondary" : "default"}
+                          size="sm"
+                          onClick={() => isEditMode ? exitEditMode() : enterEditMode()}
+                          className="w-full sm:w-auto h-9 sm:h-8 md:hidden"
+                          data-testid="button-toggle-edit"
+                        >
+                          {isEditMode ? (
+                            <>
+                              <X className="h-4 w-4 mr-1.5" />
+                              Done Editing
+                            </>
+                          ) : (
+                            <>
+                              <Edit className="h-3.5 w-3.5 mr-1.5" />
+                              Edit Mode
+                            </>
+                          )}
+                        </Button>
                       </div>
                     </div>
 
                     {/* Document Style Content */}
+                    <AnimatePresence>
+                      {activeTab === "content" && isMobile && showMobileScrollButton && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.8, y: -20 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.8, y: -20 }}
+                          className="fixed top-20 right-4 z-50 pointer-events-auto"
+                        >
+                          <Button
+                            size="sm"
+                            onClick={() => isEditMode ? exitEditMode() : enterEditMode()}
+                            className={cn(
+                              "h-10 rounded-full shadow-lg border border-primary/20 transition-all active:scale-95",
+                              isEditMode
+                                ? "bg-background text-foreground hover:bg-muted font-medium"
+                                : "bg-primary text-primary-foreground hover:bg-primary/90 font-semibold px-4"
+                            )}
+                          >
+                            {isEditMode ? (
+                              <>
+                                <X className="h-4 w-4 mr-1.5" />
+                                Done
+                              </>
+                            ) : (
+                              <>
+                                <Edit className="h-4 w-4 mr-1.5 shadow-sm" />
+                                Edit
+                              </>
+                            )}
+                          </Button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
                     {(() => {
                       const selectedModule = displayModules.find(m => m.id === selectedModuleId);
                       const selectedModuleIndex = displayModules.findIndex(m => m.id === selectedModuleId);
