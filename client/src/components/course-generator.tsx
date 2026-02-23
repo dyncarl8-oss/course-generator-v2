@@ -8,8 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Loader2, Sparkles, BookOpen, ChevronRight, Lightbulb, Code, Camera, Palette, TrendingUp, DollarSign, Upload, FileText, User, MessageSquare, Book, PenTool, Layout } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { GenerationProgress } from "@/components/generation-progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import type { GeneratedCourse } from "@shared/schema";
 
 interface CourseGeneratorProps {
@@ -258,9 +257,10 @@ export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGen
               <Sparkles className="h-4 w-4 mr-2 text-amber-500" />
               Magic AI
             </TabsTrigger>
-            <TabsTrigger value="guided" className="py-2.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <TabsTrigger value="guided" className="py-2.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm relative">
               <PenTool className="h-4 w-4 mr-2 text-blue-500" />
               Guided
+              <Badge variant="default" className="ml-1.5 h-4.5 px-1.5 text-[10px] bg-blue-600 hover:bg-blue-600 text-white border-none animate-pulse">NEW</Badge>
             </TabsTrigger>
             <TabsTrigger value="scratch" className="py-2.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
               <Layout className="h-4 w-4 mr-2 text-emerald-500" />
@@ -271,6 +271,57 @@ export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGen
           <Card className="border-none shadow-xl bg-card/50 backdrop-blur-sm">
             <CardContent className="p-6 space-y-6">
               <div className="space-y-4">
+                {mode === "guided" && (
+                  <div className="space-y-3 p-4 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-semibold flex items-center gap-2 text-blue-700 dark:text-blue-400">
+                        <Upload className="h-4 w-4" />
+                        Reference Documents
+                      </Label>
+                      <Badge variant="secondary" className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-none text-[10px]">
+                        Auto-fills everything
+                      </Badge>
+                    </div>
+
+                    <div className="relative group">
+                      <input
+                        type="file"
+                        id="file-upload"
+                        className="hidden"
+                        accept=".pdf,.txt"
+                        onChange={handleFileUpload}
+                        disabled={isExtracting}
+                      />
+                      <label
+                        htmlFor="file-upload"
+                        className={`flex flex-col items-center justify-center w-full min-h-[90px] border-2 border-dashed rounded-xl cursor-pointer transition-all
+                          ${isExtracting ? 'opacity-50 cursor-not-allowed bg-muted' : 'border-blue-200 dark:border-blue-800/50 hover:border-blue-400 bg-white/50 dark:bg-black/20 font-medium hover:bg-blue-50/80 dark:hover:bg-blue-900/20'}`}
+                      >
+                        {isExtracting ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                            <span className="text-sm font-medium">Extracting content...</span>
+                          </div>
+                        ) : fileName ? (
+                          <div className="flex flex-col items-center gap-1">
+                            <FileText className="h-7 w-7 text-blue-600" />
+                            <span className="text-sm font-medium text-blue-700 dark:text-blue-400">{fileName}</span>
+                            <span className="text-[10px] text-muted-foreground">Click to change file</span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center gap-1">
+                            <Upload className="h-6 w-6 text-blue-500 group-hover:text-blue-600 transition-colors" />
+                            <span className="text-sm font-medium text-blue-700 dark:text-blue-400">Upload PDF or TXT</span>
+                            <span className="text-[10px] text-blue-600/60 dark:text-blue-400/60 text-center px-4">
+                              Pro Tip: Uploading auto-populates title, audience, and outline!
+                            </span>
+                          </div>
+                        )}
+                      </label>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label className="text-sm font-medium flex items-center gap-2">
                     {mode === "scratch" ? <PenTool className="h-4 w-4" /> : <Lightbulb className="h-4 w-4 text-amber-500" />}
@@ -330,47 +381,6 @@ export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGen
                         onChange={(e) => setOutline(e.target.value)}
                         className="min-h-24 resize-none"
                       />
-                    </div>
-
-                    <div className="space-y-2 md:col-span-2">
-                      <Label className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                        <Upload className="h-3 w-3" />
-                        Reference Documents
-                      </Label>
-                      <div className="relative group">
-                        <input
-                          type="file"
-                          id="file-upload"
-                          className="hidden"
-                          accept=".pdf,.txt"
-                          onChange={handleFileUpload}
-                          disabled={isExtracting}
-                        />
-                        <label
-                          htmlFor="file-upload"
-                          className={`flex flex-col items-center justify-center w-full min-h-[100px] border-2 border-dashed rounded-xl cursor-pointer transition-all
-                            ${isExtracting ? 'opacity-50 cursor-not-allowed bg-muted' : 'hover:border-primary/50 hover:bg-primary/5 border-muted-foreground/20'}`}
-                        >
-                          {isExtracting ? (
-                            <div className="flex flex-col items-center gap-2">
-                              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                              <span className="text-sm font-medium">Extracting content...</span>
-                            </div>
-                          ) : fileName ? (
-                            <div className="flex flex-col items-center gap-1">
-                              <FileText className="h-8 w-8 text-primary" />
-                              <span className="text-sm font-medium text-primary">{fileName}</span>
-                              <span className="text-xs text-muted-foreground">Click to change file</span>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col items-center gap-1">
-                              <Upload className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
-                              <span className="text-sm font-medium">Upload PDF or TXT</span>
-                              <span className="text-xs text-muted-foreground">AI will use this as a reference</span>
-                            </div>
-                          )}
-                        </label>
-                      </div>
                     </div>
                   </div>
                 )}

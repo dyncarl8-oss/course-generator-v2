@@ -1103,7 +1103,7 @@ export async function analyzeDocumentMetadata(text: string): Promise<DocumentAna
   TASK:
   1. Title: Create a high-converting, professional course title.
   2. Audience: Describe the ideal student for this material (e.g., "Junior software engineers looking to master async patterns").
-  3. Tone: Suggest a specific voice (e.g., "Academic and rigorous", "Friendly and conversational", "Direct and punchy").
+  3. Tone: Suggest a specific voice from these exact options: "Professional", "Conversational", "Academic", "Enthusiastic", or "Storytelling".
   4. Outline: Briefly list 4-6 core topics/chapters the document covers.
   
   **CRITICAL: You MUST respond ONLY with a single valid JSON object.**
