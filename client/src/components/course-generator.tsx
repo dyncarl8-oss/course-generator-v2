@@ -370,23 +370,17 @@ export function CourseGenerator({
                       {mode === "scratch" ? "Course Title" : "What is this course about?"}
                     </Label>
                     {generationLimit && (
-                      <div className="flex flex-col items-end gap-1.5 min-w-[140px]">
-                        <Badge
-                          variant={generationLimit.remaining > 0 ? "secondary" : "destructive"}
-                          className="text-[11px] py-1 px-2.5 h-auto font-bold uppercase tracking-wider"
-                        >
-                          {generationLimit.remaining} / {generationLimit.limit} Daily Generations
-                        </Badge>
-                        {generationLimit.remaining === 0 && (
-                          <span className="text-xs font-semibold text-destructive animate-pulse bg-destructive/5 px-2 py-0.5 rounded-md border border-destructive/10">
-                            Resets at {formatResetTime(generationLimit.resetAt)}
-                          </span>
-                        )}
-                        {generationLimit.remaining > 0 && generationLimit.remaining < generationLimit.limit && (
-                          <span className="text-[10px] font-medium text-muted-foreground">
+                      <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+                        <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-full border text-[10px] sm:text-[11px] font-bold uppercase tracking-wider transition-colors shadow-sm ${generationLimit.remaining > 0
+                            ? "bg-secondary/50 border-secondary/50 text-secondary-foreground"
+                            : "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-500/10 dark:border-amber-500/20 dark:text-amber-400"
+                          }`}>
+                          <span>{generationLimit.remaining} / {generationLimit.limit} Daily Limit</span>
+                          <span className="w-px h-3 bg-current/20" />
+                          <span className="font-medium normal-case whitespace-nowrap">
                             Next reset: {formatResetTime(generationLimit.resetAt)}
                           </span>
-                        )}
+                        </div>
                       </div>
                     )}
                   </div>
