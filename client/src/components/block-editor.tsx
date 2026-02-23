@@ -171,22 +171,31 @@ export function BlockEditor({ blocks, onChange, courseTitle, moduleTitle, lesson
         <TooltipProvider>
             <div className="space-y-2 pb-24">
                 {localBlocks.length === 0 ? (
-                    <div className="border-2 border-dashed rounded-2xl p-12 text-center space-y-4 bg-muted/5 border-muted-foreground/10">
+                    <div className="border border-dashed rounded-[2.5rem] p-16 text-center space-y-8 bg-muted/5 border-muted-foreground/20">
                         <div className="flex justify-center">
-                            <Layout className="h-12 w-12 text-muted-foreground/30" />
+                            <div className="relative">
+                                <Layout className="h-16 w-16 text-muted-foreground/20" />
+                                <div className="absolute -bottom-2 -right-2 bg-primary text-primary-foreground p-2 rounded-xl shadow-lg ring-4 ring-background">
+                                    <Plus className="h-5 w-5" />
+                                </div>
+                            </div>
                         </div>
-                        <div className="space-y-1">
-                            <p className="font-semibold text-muted-foreground">No content yet</p>
-                            <p className="text-sm text-muted-foreground/60">Choose a tool below to start building your lesson.</p>
+                        <div className="space-y-2 max-w-sm mx-auto">
+                            <h3 className="text-xl font-bold">Start Building Your Lesson</h3>
+                            <p className="text-sm text-muted-foreground leading-relaxed">Your lesson is currently empty. Use the tools below to add your first piece of content.</p>
                         </div>
-                        <div className="flex justify-center gap-2 pt-2">
-                            <Button onClick={() => addBlock('text')} variant="outline" size="sm">
-                                <Type className="h-4 w-4 mr-2" />
-                                Add Text
+                        <div className="flex flex-wrap justify-center gap-4 pt-4">
+                            <Button onClick={() => addBlock('text')} variant="outline" className="h-12 px-6 rounded-2xl gap-2 hover:border-primary/50 transition-all">
+                                <Type className="h-5 w-5 text-primary" />
+                                <span>Add Text</span>
                             </Button>
-                            <Button onClick={() => addBlock('image')} variant="outline" size="sm">
-                                <ImageIcon className="h-4 w-4 mr-2" />
-                                Add Image
+                            <Button onClick={() => addBlock('image')} variant="outline" className="h-12 px-6 rounded-2xl gap-2 hover:border-primary/50 transition-all">
+                                <ImageIcon className="h-5 w-5 text-emerald-500" />
+                                <span>Add Image</span>
+                            </Button>
+                            <Button onClick={() => addBlock('video')} variant="outline" className="h-12 px-6 rounded-2xl gap-2 hover:border-primary/50 transition-all">
+                                <Video className="h-5 w-5 text-rose-500" />
+                                <span>Add Video</span>
                             </Button>
                         </div>
                     </div>
@@ -196,6 +205,7 @@ export function BlockEditor({ blocks, onChange, courseTitle, moduleTitle, lesson
                         {localBlocks.map((block, index) => (
                             <div key={block.id}>
                                 <div id={`block-${block.id}`} className="group relative scroll-mt-20">
+                                    {/* ... existing block rendering ... */}
                                     <div className="flex items-start gap-4">
                                         <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity pt-4 z-20">
                                             <Tooltip>
@@ -270,6 +280,13 @@ export function BlockEditor({ blocks, onChange, courseTitle, moduleTitle, lesson
                                 <InsertionPoint onAdd={(type) => addBlock(type, index + 1)} />
                             </div>
                         ))}
+
+                        {/* Persistent Add Block Toolbar at the bottom */}
+                        <div className="mt-12 flex justify-center sticky bottom-0 z-40 pb-4">
+                            <div className="bg-background/80 backdrop-blur-md p-1.5 rounded-full shadow-2xl border border-primary/20 ring-1 ring-black/5 scale-110 hover:scale-125 transition-transform duration-300">
+                                <BlockEditorToolbar onAddBlock={(type) => addBlock(type)} />
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
@@ -378,7 +395,8 @@ function InsertionPoint({ onAdd, isFirst = false }: { onAdd: (type: string) => v
             "group/insert h-6 relative flex items-center justify-center transition-all duration-300",
             "hover:h-12 hover:my-2"
         )}>
-            <div className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent scale-x-0 group-hover/insert:scale-x-100 transition-transform duration-500" />
+            {/* Context line - always visible but subtle */}
+            <div className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/10 to-transparent scale-x-75 group-hover/insert:scale-x-100 group-hover/insert:via-primary/30 transition-all duration-500" />
 
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -386,7 +404,8 @@ function InsertionPoint({ onAdd, isFirst = false }: { onAdd: (type: string) => v
                         variant="ghost"
                         size="icon"
                         className={cn(
-                            "h-7 w-7 rounded-full bg-background border border-muted-foreground/10 shadow-sm opacity-0 group-hover/insert:opacity-100 hover:scale-110 hover:border-primary/50 hover:bg-primary/5 transition-all z-30",
+                            "h-7 w-7 rounded-full bg-background border border-muted-foreground/20 shadow-sm transition-all z-30",
+                            "opacity-40 group-hover/insert:opacity-100 hover:scale-125 hover:border-primary/50 hover:bg-primary/5",
                             "flex items-center justify-center text-muted-foreground hover:text-primary"
                         )}
                     >
