@@ -33,7 +33,7 @@ const exampleTopics = [
 ];
 
 export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGenerating, apiBasePath, dailyGenerationCount = 0, hasUnlimitedAccess = false, userRole, nextReset: initialNextReset }: CourseGeneratorProps) {
-  const hasReachedLimit = dailyGenerationCount >= 1 && !hasUnlimitedAccess && userRole !== "admin";
+  const hasReachedLimit = dailyGenerationCount >= 1 && !hasUnlimitedAccess;
   const [nextReset, setNextReset] = useState<number | null>(initialNextReset || null);
   const [timeLeft, setTimeLeft] = useState<string>("");
 
