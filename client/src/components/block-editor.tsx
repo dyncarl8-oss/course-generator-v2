@@ -76,7 +76,7 @@ export function BlockEditor({ blocks, onChange, courseTitle, moduleTitle, lesson
         onChange(newBlocks);
     };
 
-    const addBlock = (type: string) => {
+    const addBlock = (type: string, index?: number) => {
         const newId = (typeof crypto !== 'undefined' && crypto.randomUUID)
             ? crypto.randomUUID()
             : Math.random().toString(36).substring(2, 11);
@@ -85,9 +85,19 @@ export function BlockEditor({ blocks, onChange, courseTitle, moduleTitle, lesson
             id: newId,
             type,
             content: getInitialContent(type),
-            orderIndex: localBlocks.length
+            orderIndex: typeof index === 'number' ? index : localBlocks.length
         };
-        const newBlocks = [...localBlocks, newBlock];
+
+        let newBlocks: ILessonBlock[];
+        if (typeof index === 'number') {
+            newBlocks = [...localBlocks];
+            newBlocks.splice(index, 0, newBlock);
+            // Re-index all blocks
+            newBlocks = newBlocks.map((b, i) => ({ ...b, orderIndex: i }));
+        } else {
+            newBlocks = [...localBlocks, newBlock];
+        }
+
         updateBlocks(newBlocks);
 
         // Autofocus/Scroll to new block + Auto-open prompt for images
@@ -159,7 +169,7 @@ export function BlockEditor({ blocks, onChange, courseTitle, moduleTitle, lesson
 
     return (
         <TooltipProvider>
-            <div className="space-y-6 pb-24">
+            <div className="space-y-2 pb-24">
                 {localBlocks.length === 0 ? (
                     <div className="border-2 border-dashed rounded-2xl p-12 text-center space-y-4 bg-muted/5 border-muted-foreground/10">
                         <div className="flex justify-center">
@@ -181,79 +191,83 @@ export function BlockEditor({ blocks, onChange, courseTitle, moduleTitle, lesson
                         </div>
                     </div>
                 ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-0">
+                        <InsertionPoint onAdd={(type) => addBlock(type, 0)} isFirst />
                         {localBlocks.map((block, index) => (
-                            <div key={block.id} id={`block-${block.id}`} className="group relative scroll-mt-20">
-                                <div className="flex items-start gap-4">
-                                    <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity pt-4 z-20">
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-muted-foreground hover:bg-muted bg-background/50 backdrop-blur-sm shadow-sm border border-muted-foreground/10"
-                                                    onClick={() => moveBlock(index, 'up')}
-                                                    disabled={index === 0 && !onMoveOutside}
-                                                >
-                                                    <ChevronUp className="h-4 w-4" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="right">Move Up</TooltipContent>
-                                        </Tooltip>
+                            <div key={block.id}>
+                                <div id={`block-${block.id}`} className="group relative scroll-mt-20">
+                                    <div className="flex items-start gap-4">
+                                        <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity pt-4 z-20">
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:bg-muted bg-background/50 backdrop-blur-sm shadow-sm border border-muted-foreground/10"
+                                                        onClick={() => moveBlock(index, 'up')}
+                                                        disabled={index === 0 && !onMoveOutside}
+                                                    >
+                                                        <ChevronUp className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="right">Move Up</TooltipContent>
+                                            </Tooltip>
 
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-muted-foreground hover:bg-muted bg-background/50 backdrop-blur-sm shadow-sm border border-muted-foreground/10"
-                                                    onClick={() => moveBlock(index, 'down')}
-                                                    disabled={index === localBlocks.length - 1 && !onMoveOutside}
-                                                >
-                                                    <ChevronDown className="h-4 w-4" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="right">Move Down</TooltipContent>
-                                        </Tooltip>
-                                    </div>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:bg-muted bg-background/50 backdrop-blur-sm shadow-sm border border-muted-foreground/10"
+                                                        onClick={() => moveBlock(index, 'down')}
+                                                        disabled={index === localBlocks.length - 1 && !onMoveOutside}
+                                                    >
+                                                        <ChevronDown className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="right">Move Down</TooltipContent>
+                                            </Tooltip>
+                                        </div>
 
-                                    <Card className="flex-1 shadow-sm border-muted-foreground/10 group-hover:border-primary/20 transition-colors">
-                                        <CardContent className="p-0">
-                                            <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/30 rounded-t-xl">
-                                                <div className="flex items-center gap-2">
-                                                    {getBlockIcon(block.type)}
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
-                                                        {block.type} Block
-                                                    </span>
+                                        <Card className="flex-1 shadow-sm border-muted-foreground/10 group-hover:border-primary/20 transition-colors">
+                                            <CardContent className="p-0">
+                                                <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/30 rounded-t-xl">
+                                                    <div className="flex items-center gap-2">
+                                                        {getBlockIcon(block.type)}
+                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+                                                            {block.type} Block
+                                                        </span>
+                                                    </div>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                                                onClick={() => removeBlock(block.id)}
+                                                            >
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>Delete Block</TooltipContent>
+                                                    </Tooltip>
                                                 </div>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                                            onClick={() => removeBlock(block.id)}
-                                                        >
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>Delete Block</TooltipContent>
-                                                </Tooltip>
-                                            </div>
-                                            <div className="p-4 relative">
-                                                {renderBlock(
-                                                    block,
-                                                    (content) => updateBlockContent(block.id, content),
-                                                    { id: isGenerating, setter: setIsGenerating },
-                                                    () => handleMagicWrite(block.id, block.type),
-                                                    { course: courseTitle, module: moduleTitle, lesson: lessonTitle },
-                                                    { expandedId: expandedPromptId, setExpandedId: setExpandedPromptId },
-                                                    toast
-                                                )}
-                                            </div>
-                                        </CardContent>
-                                    </Card>
+                                                <div className="p-4 relative">
+                                                    {renderBlock(
+                                                        block,
+                                                        (content) => updateBlockContent(block.id, content),
+                                                        { id: isGenerating, setter: setIsGenerating },
+                                                        () => handleMagicWrite(block.id, block.type),
+                                                        { course: courseTitle, module: moduleTitle, lesson: lessonTitle },
+                                                        { expandedId: expandedPromptId, setExpandedId: setExpandedPromptId },
+                                                        toast
+                                                    )}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    </div>
                                 </div>
+                                <InsertionPoint onAdd={(type) => addBlock(type, index + 1)} />
                             </div>
                         ))}
                     </div>
@@ -356,6 +370,74 @@ function getInitialContent(type: string) {
         case 'flip': return { front: "", back: "" };
         default: return {};
     }
+}
+
+function InsertionPoint({ onAdd, isFirst = false }: { onAdd: (type: string) => void, isFirst?: boolean }) {
+    return (
+        <div className={cn(
+            "group/insert h-6 relative flex items-center justify-center transition-all duration-300",
+            "hover:h-12 hover:my-2"
+        )}>
+            <div className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent scale-x-0 group-hover/insert:scale-x-100 transition-transform duration-500" />
+
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className={cn(
+                            "h-7 w-7 rounded-full bg-background border border-muted-foreground/10 shadow-sm opacity-0 group-hover/insert:opacity-100 hover:scale-110 hover:border-primary/50 hover:bg-primary/5 transition-all z-30",
+                            "flex items-center justify-center text-muted-foreground hover:text-primary"
+                        )}
+                    >
+                        <Plus className="h-4 w-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" className="w-56 z-[60]">
+                    <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/60">Insert Block</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                        <DropdownMenuItem onClick={() => onAdd('text')} className="gap-2 cursor-pointer">
+                            <Type className="h-4 w-4 text-primary/70" />
+                            <span>Text Block</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onAdd('banner')} className="gap-2 cursor-pointer">
+                            <Layout className="h-4 w-4 text-indigo-500/70" />
+                            <span>Hero Banner</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onAdd('image')} className="gap-2 cursor-pointer">
+                            <ImageIcon className="h-4 w-4 text-emerald-500/70" />
+                            <span>Image / AI Art</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onAdd('video')} className="gap-2 cursor-pointer">
+                            <Video className="h-4 w-4 text-rose-500/70" />
+                            <span>Video Embed</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/60">Interactions</DropdownMenuLabel>
+                    <DropdownMenuGroup>
+                        <DropdownMenuItem onClick={() => onAdd('quiz')} className="gap-2 cursor-pointer">
+                            <MessageSquare className="h-4 w-4 text-amber-500/70" />
+                            <span>Quick Quiz</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onAdd('tabs')} className="gap-2 cursor-pointer">
+                            <AlignLeft className="h-4 w-4 text-blue-500/70" />
+                            <span>Info Tabs</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onAdd('flip')} className="gap-2 cursor-pointer">
+                            <MousePointer2 className="h-4 w-4 text-purple-500/70" />
+                            <span>Flip Cards</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onAdd('grid')} className="gap-2 cursor-pointer">
+                            <List className="h-4 w-4 text-sky-500/70" />
+                            <span>Feature Grid</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+    );
 }
 
 function renderBlock(

@@ -1716,45 +1716,6 @@ export default function CourseEditPage() {
                       );
                     })()}
 
-                    {/* Centralized Add Block Toolbar */}
-                    {isEditMode && selectedModuleId && (
-                      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
-                        <BlockEditorToolbar
-                          onAddBlock={async (type) => {
-                            const selectedModule = course.modules.find(m => m.id === selectedModuleId);
-                            if (!selectedModule || selectedModule.lessons.length === 0) {
-                              toast({ title: "No lessons", description: "Create a lesson first to add blocks.", variant: "destructive" });
-                              return;
-                            }
-                            // Add to the LAST lesson by default (consistent with user's current experience but centralized)
-                            const lastLesson = selectedModule.lessons[selectedModule.lessons.length - 1];
-                            const currentBlocks = getLessonBlocks(lastLesson);
-
-                            const newBlockId = `${type}-${Date.now()}`;
-                            let initialContent: any = { text: "" };
-                            if (type === "image" || type === "video") initialContent = { url: "", alt: "", caption: "" };
-                            if (type === "quiz") initialContent = { question: "New Question", options: ["Option A", "Option B"], correctAnswer: 0 };
-
-                            const newBlock: ILessonBlock = {
-                              id: newBlockId,
-                              type: type as any,
-                              content: initialContent,
-                              orderIndex: currentBlocks.length
-                            };
-
-                            const newBlocks = [...currentBlocks, newBlock];
-                            trackLessonContentEdit(lastLesson.id, JSON.stringify(newBlocks));
-
-                            toast({ title: "Block added", description: `Added to ${lastLesson.title}` });
-
-                            // Scroll to bottom
-                            setTimeout(() => {
-                              mainContentRef.current?.scrollTo({ top: mainContentRef.current.scrollHeight, behavior: 'smooth' });
-                            }, 100);
-                          }}
-                        />
-                      </div>
-                    )}
                   </>
                 ) : (
                   <div className="text-center py-16 text-muted-foreground">
