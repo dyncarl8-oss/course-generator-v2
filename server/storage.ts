@@ -707,14 +707,19 @@ export class DatabaseStorage implements IStorage {
     const endOfDay = new Date();
     endOfDay.setUTCHours(23, 59, 59, 999);
 
-    const count = await CourseModel.countDocuments({
+    const courses = await CourseModel.find({
       creatorId,
       createdAt: {
         $gte: startOfDay,
         $lte: endOfDay,
       },
-    });
-    return count;
+    }).select('title generationStatus createdAt');
+
+    console.log(`[Limit Debug] Found ${courses.length} courses for user ${creatorId} today:`,
+      courses.map(c => `"${c.title}" (${c.generationStatus}) at ${c.createdAt.toISOString()}`).join(', ')
+    );
+
+    return courses.length;
   }
 
   async createFullCourseStructure(courseId: string, data: GeneratedCourse): Promise<{ moduleIndex: number; lessonIndex: number; lessonId: string }[] | any> {

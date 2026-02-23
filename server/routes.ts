@@ -46,7 +46,7 @@ const DAILY_GENERATION_LIMIT = 2;
 async function getGenerationLimit(userId: string) {
   const used = await storage.getCoursesGeneratedToday(userId);
   const resetAt = new Date();
-  resetAt.setUTCHours(23, 59, 59, 999);
+  resetAt.setUTCHours(24, 0, 0, 0);
 
   return {
     limit: DAILY_GENERATION_LIMIT,

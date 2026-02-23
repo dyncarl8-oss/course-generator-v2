@@ -58,6 +58,19 @@ export function CourseGenerator({
 
   const basePath = apiBasePath || `/api/dashboard/${companyId}`;
 
+  const formatResetTime = (isoString: string) => {
+    try {
+      const date = new Date(isoString);
+      return new Intl.DateTimeFormat('default', {
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: true
+      }).format(date);
+    } catch (e) {
+      return "midnight UTC";
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -361,8 +374,8 @@ export function CourseGenerator({
                           {generationLimit.remaining} / {generationLimit.limit} generations left
                         </Badge>
                         {generationLimit.remaining === 0 && (
-                          <span className="text-[9px] text-muted-foreground">
-                            Resets at midnight UTC
+                          <span className="text-[9px] text-muted-foreground whitespace-nowrap">
+                            Resets at {formatResetTime(generationLimit.resetAt)}
                           </span>
                         )}
                       </div>
