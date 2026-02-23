@@ -238,10 +238,10 @@ function CourseSidebar({
           <Button
             variant="default"
             className={cn(
-              "w-full justify-start gap-2 shadow-sm transition-all duration-300 font-semibold",
+              "w-full justify-start gap-2 shadow-sm transition-all duration-300 font-bold",
               isEditMode
-                ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100"
-                : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/10"
+                ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200/50"
+                : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/20"
             )}
             onClick={isEditMode ? () => exitEditMode() : enterEditMode}
           >
@@ -1136,10 +1136,10 @@ export default function CourseEditPage() {
                             size="sm"
                             onClick={() => isEditMode ? exitEditMode() : enterEditMode()}
                             className={cn(
-                              "h-10 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-primary/40 transition-all active:scale-95 px-5",
+                              "h-10 rounded-full shadow-2xl border transition-all active:scale-95 px-5",
                               isEditMode
-                                ? "bg-white text-foreground hover:bg-muted font-bold border-muted"
-                                : "bg-primary text-primary-foreground hover:bg-primary/90 font-extrabold"
+                                ? "bg-indigo-600 text-white hover:bg-indigo-700 font-bold border-indigo-400"
+                                : "bg-primary text-primary-foreground hover:bg-primary/90 font-extrabold border-primary/20"
                             )}
                           >
                             {isEditMode ? (
@@ -2151,12 +2151,19 @@ export default function CourseEditPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.2 }}
-                  className="fixed top-20 left-1/2 -translate-x-1/2 z-40"
+                  className={cn(
+                    "fixed left-1/2 -translate-x-1/2 z-40",
+                    isMobile ? "bottom-24" : "top-20"
+                  )}
                   data-testid="floating-save-button"
                 >
                   <Button
                     variant="default"
-                    size="sm"
+                    size={isMobile ? "lg" : "sm"}
+                    className={cn(
+                      "shadow-2xl border-2 border-white/20",
+                      isMobile ? "rounded-full px-8 py-6 text-lg font-black h-auto bg-green-600 hover:bg-green-700" : ""
+                    )}
                     onClick={activeTab === "settings" ? () => updateCourseMutation.mutate({
                       title: title || course.title,
                       description: description || course.description,
