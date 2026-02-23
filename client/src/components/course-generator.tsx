@@ -264,7 +264,7 @@ export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGen
                 <PenTool className="h-4 w-4 mr-2 text-blue-500" />
                 Guided
               </span>
-              <Badge variant="default" className="absolute top-[-5px] right-[-10px] h-4 px-1 text-[9px] bg-gradient-to-r from-pink-500 to-orange-400 hover:from-pink-500 hover:to-orange-400 text-white border-none animate-pulse font-bold shadow-sm">NEW</Badge>
+              <Badge variant="default" className="absolute top-[-5px] right-[-10px] h-4 px-1 text-[9px] bg-primary hover:bg-primary text-primary-foreground border-none animate-pulse font-bold shadow-sm">NEW</Badge>
             </TabsTrigger>
             <TabsTrigger value="scratch" className="py-2.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
               <Layout className="h-4 w-4 mr-2 text-emerald-500" />
@@ -280,7 +280,7 @@ export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGen
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-semibold flex items-center gap-2">
                         <Upload className="h-4 w-4 text-primary" />
-                        Reference Documents
+                        Reference Documents (Optional)
                       </Label>
                       <Badge variant="secondary" className="bg-muted text-muted-foreground border-none text-[10px] uppercase tracking-wider font-bold">
                         Auto-fills fields
