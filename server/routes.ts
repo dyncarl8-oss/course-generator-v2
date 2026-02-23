@@ -41,7 +41,7 @@ interface AuthenticatedRequest {
   accessLevel?: "admin" | "customer" | "no_access";
 }
 
-const DAILY_GENERATION_LIMIT = 1;
+const DAILY_GENERATION_LIMIT = 2;
 
 async function getGenerationLimit(userId: string) {
   const used = await storage.getCoursesGeneratedToday(userId);
