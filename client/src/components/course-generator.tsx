@@ -364,14 +364,14 @@ export function CourseGenerator({
                 )}
 
                 <div className="space-y-2">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between items-start gap-2.5 sm:gap-4">
+                  <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between items-center sm:items-center gap-3 sm:gap-4">
                     <Label className="text-sm font-semibold flex items-center gap-2 whitespace-nowrap">
                       {mode === "scratch" ? <PenTool className="h-4 w-4" /> : <Lightbulb className="h-4 w-4 text-amber-500" />}
                       {mode === "scratch" ? "Course Title" : "What is this course about?"}
                     </Label>
                     {generationLimit && (
-                      <div className="w-full sm:w-auto flex justify-start sm:justify-end">
-                        <div className={`flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 rounded-full border text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition-all shadow-sm ${generationLimit.remaining > 0
+                      <div className="w-full sm:w-auto flex justify-center sm:justify-end">
+                        <div className={`flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-full border text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition-all shadow-sm ${generationLimit.remaining > 0
                             ? "bg-secondary/40 border-secondary/40 text-secondary-foreground"
                             : "bg-amber-50/80 border-amber-200/50 text-amber-700 dark:bg-amber-500/10 dark:border-amber-500/20 dark:text-amber-400"
                           }`}>
