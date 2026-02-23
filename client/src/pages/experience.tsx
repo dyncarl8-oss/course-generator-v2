@@ -494,7 +494,7 @@ export default function ExperiencePage() {
                   Revenue Split
                 </h3>
                 <p className="text-sm text-muted-foreground ml-7">
-                  <span className="font-semibold text-foreground">You earn 70% of every course sale</span>. Cursai keeps 30% to maintain the platform and power the AI. It's a fair partnership.
+                  <span className="font-semibold text-foreground">You earn 55% of every course sale</span>. Cursai keeps 45% to maintain the platform and power the AI. It's a fair partnership.
                 </p>
               </div>
 
