@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Loader2, Sparkles, BookOpen, ChevronRight, Lightbulb, Code, Camera, Palette, TrendingUp, DollarSign, Upload, FileText, User, MessageSquare, Book, PenTool, Layout } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { GenerationProgress } from "@/components/generation-progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import type { GeneratedCourse } from "@shared/schema";
 
