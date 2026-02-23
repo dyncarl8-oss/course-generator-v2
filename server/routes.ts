@@ -441,11 +441,17 @@ export async function registerRoutes(
         };
       }
 
+      const allCreatorCourses = await storage.getCoursesByCreator(req.user.id);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dailyGenerationCount = allCreatorCourses.filter(c => new Date(c.createdAt) >= today).length;
+
       res.json({
         user: req.user,
         courses: coursesWithStats,
         companyId: req.params.companyId,
         earnings,
+        dailyGenerationCount,
       });
     } catch {
 
@@ -541,6 +547,25 @@ export async function registerRoutes(
   // Async version to handle timeouts
   app.post("/api/dashboard/:companyId/courses/generate-async", authenticateWhop, requireAdmin, async (req: AuthenticatedRequest, res: any) => {
     try {
+      if (!req.user) {
+        return res.status(401).json({ error: "User not found" });
+      }
+
+      // Check daily limit for creators
+      if (req.user.role === "creator" && !req.user.hasUnlimitedAccess) {
+        const creatorCourses = await storage.getCoursesByCreator(req.user.id);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const dailyCount = creatorCourses.filter(c => new Date(c.createdAt) >= today).length;
+
+        if (dailyCount >= 1) {
+          return res.status(403).json({
+            error: "Daily limit reached",
+            message: "You have already generated 1 course today. Please try again tomorrow or upgrade for unlimited access."
+          });
+        }
+      }
+
       const { topic, tone, audience, outline, referenceText } = req.body;
 
       if (!topic || typeof topic !== "string") {
@@ -1366,11 +1391,17 @@ export async function registerRoutes(
           })
         );
 
+        const allCreatorCourses = await storage.getCoursesByCreator(req.user.id);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const dailyGenerationCount = allCreatorCourses.filter(c => new Date(c.createdAt) >= today).length;
+
         res.json({
           user: req.user,
           courses: coursesWithAccess,
           experienceId: req.params.experienceId,
           accessLevel: req.accessLevel,
+          dailyGenerationCount,
         });
       }
     } catch {
@@ -1406,7 +1437,27 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Admin access required" });
       }
 
+      if (!req.user) {
+        return res.status(401).json({ error: "User not found" });
+      }
+
+      // Check daily limit for creators
+      if (req.user.role === "creator" && !req.user.hasUnlimitedAccess) {
+        const creatorCourses = await storage.getCoursesByCreator(req.user.id);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const dailyCount = creatorCourses.filter(c => new Date(c.createdAt) >= today).length;
+
+        if (dailyCount >= 1) {
+          return res.status(403).json({
+            error: "Daily limit reached",
+            message: "You have already generated 1 course today. Please try again tomorrow or upgrade for unlimited access."
+          });
+        }
+      }
+
       const { topic, tone, audience, outline, referenceText } = req.body;
+
       if (!topic || typeof topic !== "string") {
         return res.status(400).json({ error: "Topic is required" });
       }

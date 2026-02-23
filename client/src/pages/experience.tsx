@@ -39,6 +39,7 @@ interface ExperienceData {
   experienceId: string;
   accessLevel: "admin" | "customer" | "no_access";
   earnings?: { totalEarnings: number; availableBalance: number; pendingBalance: number };
+  dailyGenerationCount: number;
 }
 
 export default function ExperiencePage() {
@@ -426,6 +427,8 @@ export default function ExperiencePage() {
                     isGenerating={isGenerating}
                     setIsGenerating={setIsGenerating}
                     apiBasePath={`/api/experiences/${experienceId}`}
+                    dailyGenerationCount={data?.dailyGenerationCount}
+                    hasUnlimitedAccess={(data?.user as any)?.hasUnlimitedAccess}
                   />
                 ) : (
                   <CoursePreview

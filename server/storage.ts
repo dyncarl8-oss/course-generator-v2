@@ -30,6 +30,7 @@ function docToUser(doc: any): User {
     role: doc.role,
     whopCompanyId: doc.whopCompanyId || null,
     adminBalance: doc.adminBalance || undefined,
+    hasUnlimitedAccess: doc.hasUnlimitedAccess || false,
     createdAt: doc.createdAt,
   };
 }
@@ -157,7 +158,7 @@ export interface IStorage {
 
   getCourse(id: string): Promise<Course | undefined>;
   getCourseWithModules(id: string): Promise<CourseWithModules | undefined>;
-  getCoursesByCreator(creatorId: string, companyId: string): Promise<Course[]>;
+  getCoursesByCreator(creatorId: string, companyId?: string): Promise<Course[]>;
   getPublishedCourses(): Promise<Course[]>;
   getPublishedCoursesByCompany(companyId: string): Promise<CourseWithModules[]>;
   createCourse(course: InsertCourse): Promise<Course>;
@@ -331,8 +332,12 @@ export class DatabaseStorage implements IStorage {
     return { ...course, modules: modulesWithLessons, creator };
   }
 
-  async getCoursesByCreator(creatorId: string, companyId: string): Promise<Course[]> {
-    const docs = await CourseModel.find({ creatorId, whopCompanyId: companyId }).sort({ createdAt: -1 });
+  async getCoursesByCreator(creatorId: string, companyId?: string): Promise<Course[]> {
+    const query: any = { creatorId };
+    if (companyId) {
+      query.whopCompanyId = companyId;
+    }
+    const docs = await CourseModel.find(query).sort({ createdAt: -1 });
     return docs.map(docToCourse);
   }
 

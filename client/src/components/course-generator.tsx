@@ -19,6 +19,8 @@ interface CourseGeneratorProps {
   isGenerating: boolean;
   setIsGenerating: (generating: boolean) => void;
   apiBasePath?: string;
+  dailyGenerationCount?: number;
+  hasUnlimitedAccess?: boolean;
 }
 
 const exampleTopics = [
@@ -28,7 +30,8 @@ const exampleTopics = [
   { icon: Palette, label: "Design", topic: "UI/UX Design Principles" },
 ];
 
-export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGenerating, apiBasePath }: CourseGeneratorProps) {
+export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGenerating, apiBasePath, dailyGenerationCount = 0, hasUnlimitedAccess = false }: CourseGeneratorProps) {
+  const hasReachedLimit = dailyGenerationCount >= 1 && !hasUnlimitedAccess;
   const [topic, setTopic] = useState("");
   const [mode, setMode] = useState<"magic" | "guided" | "scratch">("magic");
 
@@ -415,10 +418,26 @@ export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGen
                 )}
               </div>
 
+              {hasReachedLimit && (
+                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="flex items-start gap-3">
+                    <div className="h-8 w-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+                      <Sparkles className="h-4 w-4 text-amber-600" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold text-amber-700">Daily limit reached</h4>
+                      <p className="text-xs text-amber-600/80 mt-0.5 leading-relaxed">
+                        You have already generated 1 course today. Creators on the free plan are limited to 1 course per day. Check back tomorrow!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="pt-2">
                 <Button
                   onClick={handleGenerate}
-                  disabled={isGenerating || (mode !== "scratch" && !topic.trim()) || isExtracting}
+                  disabled={isGenerating || (mode !== "scratch" && !topic.trim()) || isExtracting || hasReachedLimit}
                   className="w-full h-14 text-lg font-semibold rounded-xl shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99]"
                   size="lg"
                 >
@@ -426,6 +445,11 @@ export function CourseGenerator({ companyId, onGenerated, isGenerating, setIsGen
                     <>
                       <Loader2 className="mr-3 h-6 w-6 animate-spin" />
                       We're building your course...
+                    </>
+                  ) : hasReachedLimit ? (
+                    <>
+                      <Lock className="mr-2 h-5 w-5" />
+                      Daily Limit Reached
                     </>
                   ) : mode === "scratch" ? (
                     <>
