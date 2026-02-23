@@ -234,14 +234,14 @@ function CourseSidebar({
       </SidebarContent>
 
       {!isMobile && activeTab === "content" && (
-        <SidebarFooter className="p-4 border-t">
+        <SidebarFooter className="p-4 border-t mt-auto">
           <Button
             variant="default"
             className={cn(
-              "w-full justify-start gap-2 shadow-md transition-all duration-300",
+              "w-full justify-start gap-2 shadow-sm transition-all duration-300 font-semibold",
               isEditMode
-                ? "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                : "bg-primary text-primary-foreground hover:bg-primary/90"
+                ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100"
+                : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/10"
             )}
             onClick={isEditMode ? () => exitEditMode() : enterEditMode}
           >
@@ -356,8 +356,8 @@ export default function CourseEditPage() {
     }
 
     const handleScroll = () => {
-      // Use a lower threshold for better responsiveness
-      setShowMobileScrollButton(mainContent.scrollTop > 100);
+      // Very low threshold for immediate feedback
+      setShowMobileScrollButton(mainContent.scrollTop > 50);
     };
 
     // Trigger check immediately in case we're already scrolled
@@ -1130,16 +1130,16 @@ export default function CourseEditPage() {
                           initial={{ opacity: 0, scale: 0.8, x: 20 }}
                           animate={{ opacity: 1, scale: 1, x: 0 }}
                           exit={{ opacity: 0, scale: 0.8, x: 20 }}
-                          className="fixed top-18 right-4 z-[60] pointer-events-auto"
+                          className="fixed top-20 right-4 z-[9999] pointer-events-auto"
                         >
                           <Button
                             size="sm"
                             onClick={() => isEditMode ? exitEditMode() : enterEditMode()}
                             className={cn(
-                              "h-10 rounded-full shadow-2xl border border-primary/30 transition-all active:scale-95 px-5",
+                              "h-10 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-primary/40 transition-all active:scale-95 px-5",
                               isEditMode
-                                ? "bg-background text-foreground hover:bg-muted font-medium"
-                                : "bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
+                                ? "bg-white text-foreground hover:bg-muted font-bold border-muted"
+                                : "bg-primary text-primary-foreground hover:bg-primary/90 font-extrabold"
                             )}
                           >
                             {isEditMode ? (
