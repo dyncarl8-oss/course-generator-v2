@@ -92,7 +92,7 @@ import { Link } from "wouter";
 import { getEmbedUrl } from "@/lib/utils";
 import QuizEditor from "@/components/QuizEditor";
 import { MediaDialog } from "@/components/media-dialog";
-import { BlockEditor } from "@/components/block-editor";
+import { BlockEditor, BlockEditorToolbar } from "@/components/block-editor";
 import { ILessonBlock } from "@shared/schema";
 
 function MobileSidebarTrigger() {
@@ -814,25 +814,72 @@ export default function CourseEditPage() {
     setIsDirty(checkIfDirtyFromRef());
   };
 
+  const handleMoveBlockOutside = (lessonId: string, blockIndex: number, direction: 'up' | 'down') => {
+    const selectedModule = course.modules.find(m => m.id === selectedModuleId);
+    if (!selectedModule) return;
+
+    const selectedModuleIndex = course.modules.findIndex(m => m.id === selectedModuleId);
+    const lessonIndex = selectedModule.lessons.findIndex(l => l.id === lessonId);
+    if (lessonIndex === -1) return;
+
+    const currentLesson = selectedModule.lessons[lessonIndex];
+    const currentBlocks = getLessonBlocks(currentLesson);
+    const blockToMove = currentBlocks[blockIndex];
+
+    if (direction === 'up' && lessonIndex > 0) {
+      // Move to previous lesson
+      const prevLesson = selectedModule.lessons[lessonIndex - 1];
+      const prevBlocks = getLessonBlocks(prevLesson);
+
+      // Remove from current
+      const newCurrentBlocks = currentBlocks.filter((_, i) => i !== blockIndex);
+      trackLessonContentEdit(currentLesson.id, JSON.stringify(newCurrentBlocks.map((b, i) => ({ ...b, orderIndex: i }))));
+
+      // Add to prev (at the end)
+      const newPrevBlocks = [...prevBlocks, blockToMove];
+      trackLessonContentEdit(prevLesson.id, JSON.stringify(newPrevBlocks.map((b, i) => ({ ...b, orderIndex: i }))));
+
+      toast({ title: "Block moved up", description: `Moved to lesson ${selectedModuleIndex + 1}.${lessonIndex}` });
+    } else if (direction === 'down' && lessonIndex < selectedModule.lessons.length - 1) {
+      // Move to next lesson
+      const nextLesson = selectedModule.lessons[lessonIndex + 1];
+      const nextBlocks = getLessonBlocks(nextLesson);
+
+      // Remove from current
+      const newCurrentBlocks = currentBlocks.filter((_, i) => i !== blockIndex);
+      trackLessonContentEdit(currentLesson.id, JSON.stringify(newCurrentBlocks.map((b, i) => ({ ...b, orderIndex: i }))));
+
+      // Add to next (at the start)
+      const newNextBlocks = [blockToMove, ...nextBlocks];
+      trackLessonContentEdit(nextLesson.id, JSON.stringify(newNextBlocks.map((b, i) => ({ ...b, orderIndex: i }))));
+
+      toast({ title: "Block moved down", description: `Moved to lesson ${selectedModuleIndex + 1}.${lessonIndex + 2}` });
+    }
+  };
+
   // Helper to parse blocks from lesson content
   const getLessonBlocks = (lesson: any): ILessonBlock[] => {
+    // Check for buffered edits first
+    const edited = editedContentRef.current.get(`content-${lesson.id}`);
+    const contentToParse = edited ? edited.value : lesson.content;
+
     try {
-      const parsed = JSON.parse(lesson.content);
+      const parsed = JSON.parse(contentToParse);
       if (Array.isArray(parsed)) return parsed;
     } catch (e) {
       // Not JSON, convert legacy text + media to blocks
       const blocks: ILessonBlock[] = [];
-      if (lesson.content) {
+      if (contentToParse) {
         blocks.push({
           id: `legacy-text-${lesson.id}-${blocks.length}`,
           type: 'text',
-          content: { text: lesson.content },
+          content: { text: contentToParse },
           orderIndex: 0
         });
       }
 
-      // Add legacy media as blocks if any
-      if (lesson.media && Array.isArray(lesson.media)) {
+      // Add legacy media as blocks if any (only if not already converted/edited)
+      if (!edited && lesson.media && Array.isArray(lesson.media)) {
         lesson.media.forEach((m: any, i: number) => {
           blocks.push({
             id: m.id ? String(m.id) : `legacy-media-${lesson.id}-${i}`,
@@ -1341,6 +1388,7 @@ export default function CourseEditPage() {
                                               const newContent = JSON.stringify(blocks);
                                               trackLessonContentEdit(lesson.id, newContent);
                                             }}
+                                            onMoveOutside={(index, direction) => handleMoveBlockOutside(lesson.id, index, direction)}
                                             courseTitle={course.title}
                                             moduleTitle={selectedModule.title}
                                             lessonTitle={lesson.title}
@@ -1574,6 +1622,46 @@ export default function CourseEditPage() {
                         </article>
                       );
                     })()}
+
+                    {/* Centralized Add Block Toolbar */}
+                    {isEditMode && selectedModuleId && (
+                      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
+                        <BlockEditorToolbar
+                          onAddBlock={async (type) => {
+                            const selectedModule = course.modules.find(m => m.id === selectedModuleId);
+                            if (!selectedModule || selectedModule.lessons.length === 0) {
+                              toast({ title: "No lessons", description: "Create a lesson first to add blocks.", variant: "destructive" });
+                              return;
+                            }
+                            // Add to the LAST lesson by default (consistent with user's current experience but centralized)
+                            const lastLesson = selectedModule.lessons[selectedModule.lessons.length - 1];
+                            const currentBlocks = getLessonBlocks(lastLesson);
+
+                            const newBlockId = `${type}-${Date.now()}`;
+                            let initialContent: any = { text: "" };
+                            if (type === "image" || type === "video") initialContent = { url: "", alt: "", caption: "" };
+                            if (type === "quiz") initialContent = { question: "New Question", options: ["Option A", "Option B"], correctAnswer: 0 };
+
+                            const newBlock: ILessonBlock = {
+                              id: newBlockId,
+                              type: type as any,
+                              content: initialContent,
+                              orderIndex: currentBlocks.length
+                            };
+
+                            const newBlocks = [...currentBlocks, newBlock];
+                            trackLessonContentEdit(lastLesson.id, JSON.stringify(newBlocks));
+
+                            toast({ title: "Block added", description: `Added to ${lastLesson.title}` });
+
+                            // Scroll to bottom
+                            setTimeout(() => {
+                              mainContentRef.current?.scrollTo({ top: mainContentRef.current.scrollHeight, behavior: 'smooth' });
+                            }, 100);
+                          }}
+                        />
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="text-center py-16 text-muted-foreground">

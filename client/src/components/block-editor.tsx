@@ -46,9 +46,10 @@ interface BlockEditorProps {
     courseTitle?: string;
     moduleTitle?: string;
     lessonTitle?: string;
+    onMoveOutside?: (index: number, direction: 'up' | 'down') => void;
 }
 
-export function BlockEditor({ blocks, onChange, courseTitle, moduleTitle, lessonTitle }: BlockEditorProps) {
+export function BlockEditor({ blocks, onChange, courseTitle, moduleTitle, lessonTitle, onMoveOutside }: BlockEditorProps) {
     const { companyId } = useParams<{ companyId: string }>();
     const { toast } = useToast();
     const [localBlocks, setLocalBlocks] = useState<ILessonBlock[]>(blocks || []);
@@ -111,7 +112,13 @@ export function BlockEditor({ blocks, onChange, courseTitle, moduleTitle, lesson
     const moveBlock = (index: number, direction: 'up' | 'down') => {
         const newBlocks = [...localBlocks];
         const targetIndex = direction === 'up' ? index - 1 : index + 1;
-        if (targetIndex < 0 || targetIndex >= newBlocks.length) return;
+        
+        if (targetIndex < 0 || targetIndex >= newBlocks.length) {
+            if (onMoveOutside) {
+                onMoveOutside(index, direction);
+            }
+            return;
+        }
 
         [newBlocks[index], newBlocks[targetIndex]] = [newBlocks[targetIndex], newBlocks[index]];
 
@@ -251,52 +258,53 @@ export function BlockEditor({ blocks, onChange, courseTitle, moduleTitle, lesson
                         ))}
                     </div>
                 )}
-
-                {/* Floating Toolbar Placeholder */}
-                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
-                    <Card className="shadow-2xl border-primary/20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 rounded-full px-2 py-1 flex items-center gap-1 ring-1 ring-black/5">
-                        <ToolbarItem icon={Type} label="Text" onClick={() => addBlock('text')} />
-                        <ToolbarItem icon={ImageIcon} label="Image" onClick={() => addBlock('image')} />
-                        <ToolbarItem icon={Video} label="Video" onClick={() => addBlock('video')} />
-                        <ToolbarItem icon={List} label="Grid" onClick={() => addBlock('grid')} />
-                        <ToolbarItem icon={MessageSquare} label="Quiz" onClick={() => addBlock('quiz')} />
-                        <div className="w-px h-6 bg-muted-foreground/20 mx-1" />
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="rounded-full hover:bg-primary/10">
-                                    <Plus className="h-5 w-5 text-primary" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="center" className="w-56 mb-4">
-                                <DropdownMenuLabel>Magic Tools</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Text Utils</div>
-                                <DropdownMenuGroup>
-                                    <DropdownMenuItem onClick={() => addBlock('banner')}>
-                                        <Layout className="mr-2 h-4 w-4" />
-                                        <span>Banner</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => addBlock('quote')}>
-                                        <Quote className="mr-2 h-4 w-4" />
-                                        <span>Quote</span>
-                                    </DropdownMenuItem>
-                                </DropdownMenuGroup>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuLabel>Interactions</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => addBlock('tabs')}>
-                                    <AlignLeft className="mr-2 h-4 w-4" />
-                                    <span>Info Tabs</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => addBlock('flip')}>
-                                    <MousePointer2 className="mr-2 h-4 w-4" />
-                                    <span>Flip Cards</span>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </Card>
-                </div>
             </div>
         </TooltipProvider>
+    );
+}
+
+export function BlockEditorToolbar({ onAddBlock }: { onAddBlock: (type: string) => void }) {
+    return (
+        <Card className="shadow-2xl border-primary/20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 rounded-full px-2 py-1 flex items-center gap-1 ring-1 ring-black/5">
+            <ToolbarItem icon={Type} label="Text" onClick={() => onAddBlock('text')} />
+            <ToolbarItem icon={ImageIcon} label="Image" onClick={() => onAddBlock('image')} />
+            <ToolbarItem icon={Video} label="Video" onClick={() => onAddBlock('video')} />
+            <ToolbarItem icon={List} label="Grid" onClick={() => onAddBlock('grid')} />
+            <ToolbarItem icon={MessageSquare} label="Quiz" onClick={() => onAddBlock('quiz')} />
+            <div className="w-px h-6 bg-muted-foreground/20 mx-1" />
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="rounded-full hover:bg-primary/10">
+                        <Plus className="h-5 w-5 text-primary" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" className="w-56 mb-4">
+                    <DropdownMenuLabel>Magic Tools</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Text Utils</div>
+                    <DropdownMenuGroup>
+                        <DropdownMenuItem onClick={() => onAddBlock('banner')}>
+                            <Layout className="mr-2 h-4 w-4" />
+                            <span>Banner</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onAddBlock('quote')}>
+                            <Quote className="mr-2 h-4 w-4" />
+                            <span>Quote</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>Interactions</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => onAddBlock('tabs')}>
+                        <AlignLeft className="mr-2 h-4 w-4" />
+                        <span>Info Tabs</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onAddBlock('flip')}>
+                        <MousePointer2 className="mr-2 h-4 w-4" />
+                        <span>Flip Cards</span>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </Card>
     );
 }
 
