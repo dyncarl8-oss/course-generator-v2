@@ -238,10 +238,10 @@ function CourseSidebar({
           <Button
             variant="default"
             className={cn(
-              "w-full justify-start gap-2 shadow-sm transition-all duration-200",
+              "w-full justify-start gap-2 shadow-md transition-all duration-300",
               isEditMode
-                ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
+                ? "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                : "bg-primary text-primary-foreground hover:bg-primary/90"
             )}
             onClick={isEditMode ? () => exitEditMode() : enterEditMode}
           >
@@ -350,15 +350,22 @@ export default function CourseEditPage() {
   // Handle scroll for mobile floating edit button
   useEffect(() => {
     const mainContent = mainContentRef.current;
-    if (!mainContent || !isMobile) return;
+    if (!mainContent || !isMobile || activeTab !== "content") {
+      setShowMobileScrollButton(false);
+      return;
+    }
 
     const handleScroll = () => {
-      setShowMobileScrollButton(mainContent.scrollTop > 200);
+      // Use a lower threshold for better responsiveness
+      setShowMobileScrollButton(mainContent.scrollTop > 100);
     };
 
-    mainContent.addEventListener('scroll', handleScroll);
+    // Trigger check immediately in case we're already scrolled
+    handleScroll();
+
+    mainContent.addEventListener('scroll', handleScroll, { passive: true });
     return () => mainContent.removeEventListener('scroll', handleScroll);
-  }, [isMobile]);
+  }, [isMobile, activeTab]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1120,29 +1127,29 @@ export default function CourseEditPage() {
                     <AnimatePresence>
                       {activeTab === "content" && isMobile && showMobileScrollButton && (
                         <motion.div
-                          initial={{ opacity: 0, scale: 0.8, y: -20 }}
-                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.8, y: -20 }}
-                          className="fixed top-20 right-4 z-50 pointer-events-auto"
+                          initial={{ opacity: 0, scale: 0.8, x: 20 }}
+                          animate={{ opacity: 1, scale: 1, x: 0 }}
+                          exit={{ opacity: 0, scale: 0.8, x: 20 }}
+                          className="fixed top-18 right-4 z-[60] pointer-events-auto"
                         >
                           <Button
                             size="sm"
                             onClick={() => isEditMode ? exitEditMode() : enterEditMode()}
                             className={cn(
-                              "h-10 rounded-full shadow-lg border border-primary/20 transition-all active:scale-95",
+                              "h-10 rounded-full shadow-2xl border border-primary/30 transition-all active:scale-95 px-5",
                               isEditMode
                                 ? "bg-background text-foreground hover:bg-muted font-medium"
-                                : "bg-primary text-primary-foreground hover:bg-primary/90 font-semibold px-4"
+                                : "bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
                             )}
                           >
                             {isEditMode ? (
                               <>
-                                <X className="h-4 w-4 mr-1.5" />
+                                <X className="h-4 w-4 mr-2" />
                                 Done
                               </>
                             ) : (
                               <>
-                                <Edit className="h-4 w-4 mr-1.5 shadow-sm" />
+                                <Edit className="h-4 w-4 mr-2" />
                                 Edit
                               </>
                             )}
