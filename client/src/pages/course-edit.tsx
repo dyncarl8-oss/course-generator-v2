@@ -29,6 +29,7 @@ import {
   SidebarMenuSubItem,
   SidebarMenuSubButton,
   SidebarTrigger,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
   useSidebar,
@@ -83,6 +84,7 @@ import {
   ZoomIn,
   Menu,
   HelpCircle,
+  Edit,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -120,6 +122,9 @@ interface CourseSidebarProps {
   selectedModuleId: string | null;
   handleModuleChange: (id: string | null) => void;
   isMobile: boolean;
+  isEditMode: boolean;
+  enterEditMode: () => void;
+  exitEditMode: (force?: boolean) => void;
 }
 
 function CourseSidebar({
@@ -132,6 +137,9 @@ function CourseSidebar({
   selectedModuleId,
   handleModuleChange,
   isMobile,
+  isEditMode,
+  enterEditMode,
+  exitEditMode,
 }: CourseSidebarProps) {
   const { setOpenMobile } = useSidebar();
 
@@ -224,6 +232,31 @@ function CourseSidebar({
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
+
+      {!isMobile && activeTab === "content" && (
+        <SidebarFooter className="p-4 border-t">
+          <Button
+            variant={isEditMode ? "default" : "outline"}
+            className={cn(
+              "w-full justify-start gap-2",
+              isEditMode ? "bg-primary text-primary-foreground shadow-md" : "hover:bg-muted"
+            )}
+            onClick={isEditMode ? () => exitEditMode() : enterEditMode}
+          >
+            {isEditMode ? (
+              <>
+                <Eye className="h-4 w-4" />
+                <span>View Mode</span>
+              </>
+            ) : (
+              <>
+                <Edit className="h-4 w-4" />
+                <span>Edit Mode</span>
+              </>
+            )}
+          </Button>
+        </SidebarFooter>
+      )}
     </Sidebar>
   );
 }
@@ -1016,6 +1049,9 @@ export default function CourseEditPage() {
             selectedModuleId={selectedModuleId}
             handleModuleChange={handleModuleChange}
             isMobile={isMobile}
+            isEditMode={isEditMode}
+            enterEditMode={enterEditMode}
+            exitEditMode={exitEditMode}
           />
 
           {/* Main Content Area */}
@@ -1025,42 +1061,44 @@ export default function CourseEditPage() {
               <div key={selectedModuleId} className="max-w-3xl mx-auto py-6 pb-24 px-4 sm:px-6">
                 {course.modules.length > 0 ? (
                   <>
-                    {/* Course Stats & Edit Button */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6" data-testid="course-stats">
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground order-2 sm:order-1">
-                        <span className="flex items-center gap-1.5 min-w-fit">
-                          <Layers className="h-3.5 w-3.5" />
-                          {course.modules.length} modules
-                        </span>
-                        <span className="flex items-center gap-1.5 min-w-fit">
-                          <BookOpen className="h-3.5 w-3.5" />
-                          {totalLessons} lessons
-                        </span>
-                        <span className="flex items-center gap-1.5 min-w-fit font-medium text-foreground">
-                          <DollarSign className="h-3.5 w-3.5" />
-                          {course.isFree ? "Free" : `$${parseFloat(course.price || "0").toFixed(2)}`}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 order-1 sm:order-2">
-                        <Button
-                          variant={isEditMode ? "secondary" : "default"}
-                          size="sm"
-                          onClick={() => isEditMode ? exitEditMode() : enterEditMode()}
-                          className="w-full sm:w-auto h-9 sm:h-8"
-                          data-testid="button-toggle-edit"
-                        >
-                          {isEditMode ? (
-                            <>
-                              <X className="h-4 w-4 mr-1.5" />
-                              Done Editing
-                            </>
-                          ) : (
-                            <>
-                              <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                              Edit Mode
-                            </>
-                          )}
-                        </Button>
+                    {/* Course Stats & Edit Button - Sticky on Mobile */}
+                    <div className="sticky top-0 z-30 -mx-4 px-4 py-4 md:static md:px-0 md:py-0 md:bg-transparent bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b md:border-none mb-6">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4" data-testid="course-stats">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground order-2 sm:order-1">
+                          <span className="flex items-center gap-1.5 min-w-fit">
+                            <Layers className="h-3.5 w-3.5" />
+                            {course.modules.length} modules
+                          </span>
+                          <span className="flex items-center gap-1.5 min-w-fit">
+                            <BookOpen className="h-3.5 w-3.5" />
+                            {totalLessons} lessons
+                          </span>
+                          <span className="flex items-center gap-1.5 min-w-fit font-medium text-foreground">
+                            <DollarSign className="h-3.5 w-3.5" />
+                            {course.isFree ? "Free" : `$${parseFloat(course.price || "0").toFixed(2)}`}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 order-1 sm:order-2">
+                          <Button
+                            variant={isEditMode ? "secondary" : "default"}
+                            size="sm"
+                            onClick={() => isEditMode ? exitEditMode() : enterEditMode()}
+                            className="w-full sm:w-auto h-9 sm:h-8 md:hidden"
+                            data-testid="button-toggle-edit"
+                          >
+                            {isEditMode ? (
+                              <>
+                                <X className="h-4 w-4 mr-1.5" />
+                                Done Editing
+                              </>
+                            ) : (
+                              <>
+                                <Edit className="h-3.5 w-3.5 mr-1.5" />
+                                Edit Mode
+                              </>
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     </div>
 
